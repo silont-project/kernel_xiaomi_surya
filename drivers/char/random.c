@@ -1854,12 +1854,6 @@ _random_read(int nonblock, char __user *buf, size_t nbytes)
 
 #ifndef CONFIG_SRANDOM
 static ssize_t
-random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
-{
-	return _random_read(file->f_flags & O_NONBLOCK, buf, nbytes);
-}
-
-static ssize_t
 urandom_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	unsigned long flags;
@@ -2009,7 +2003,7 @@ const struct file_operations random_fops = {
 	.read  = sdevice_read,
 	.write = sdevice_write,
 	#else
-	.read  = random_read,
+	.read  = urandom_read,
 	.write = random_write,
 	#endif
 	.poll  = random_poll,
