@@ -197,9 +197,9 @@ __CMPXCHG_GEN(_mb)
 	__ret; \
 })
 
-#define __CMPWAIT_CASE(w, sz, name)					\
-static inline void __cmpwait_case_##name(volatile void *ptr,		\
-					 unsigned long val)		\
+#define __CMPWAIT_CASE(w, sfx, sz)					\
+static inline void __cmpwait_case_##sz(volatile void *ptr,		\
+				       unsigned long val)		\
 {									\
 	unsigned long tmp;						\
 									\
