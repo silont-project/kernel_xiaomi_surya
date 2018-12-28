@@ -1012,6 +1012,7 @@ void __init swap_setup(void)
 {
 	/* Tweak for Android devices using zram */
 	page_cluster = 0;
+	unsigned long megs = totalram_pages() >> (20 - PAGE_SHIFT);
 
 	/*
 	 * Right now other parts of the system means that we
