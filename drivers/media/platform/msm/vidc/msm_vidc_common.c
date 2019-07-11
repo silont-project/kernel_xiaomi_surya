@@ -27,6 +27,7 @@
 static struct kmem_cache *kmem_buf_pool;
 
 #define MSM_VIDC_QBUF_BATCH_TIMEOUT 300
+
 #define IS_ALREADY_IN_STATE(__p, __d) (\
 	(__p >= __d)\
 )
