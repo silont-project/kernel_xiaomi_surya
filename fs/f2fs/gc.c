@@ -1174,9 +1174,9 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	}
 
 	if (f2fs_is_atomic_file(inode)) {
-		err = -EAGAIN;
 		F2FS_I(inode)->i_gc_failures[GC_FAILURE_ATOMIC]++;
 		F2FS_I_SB(inode)->skipped_atomic_files[gc_type]++;
+		err = -EAGAIN;
 		goto out;
 	}
 
@@ -1324,9 +1324,9 @@ static int move_data_page(struct inode *inode, block_t bidx, int gc_type,
 	}
 
 	if (f2fs_is_atomic_file(inode)) {
-		err = -EAGAIN;
 		F2FS_I(inode)->i_gc_failures[GC_FAILURE_ATOMIC]++;
 		F2FS_I_SB(inode)->skipped_atomic_files[gc_type]++;
+		err = -EAGAIN;
 		goto out;
 	}
 	if (f2fs_is_pinned_file(inode)) {
@@ -1519,8 +1519,8 @@ next_step:
 			start_bidx = f2fs_start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
 			if (f2fs_post_read_required(inode))
-				err = move_data_block(inode, start_bidx, gc_type,
-								segno, off);
+				err = move_data_block(inode, start_bidx,
+							gc_type, segno, off);
 			else
 				err = move_data_page(inode, start_bidx, gc_type,
 								segno, off);
