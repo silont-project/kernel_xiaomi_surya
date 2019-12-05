@@ -260,7 +260,6 @@ static int is_adsp_raise_event(uint32_t cmd)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_DEBUG_FS
 #define OUT_BUFFER_SIZE 56
 #define IN_BUFFER_SIZE 24
 
