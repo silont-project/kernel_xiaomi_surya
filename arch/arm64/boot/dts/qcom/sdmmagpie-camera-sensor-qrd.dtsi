@@ -294,6 +294,7 @@
 
 
 &pm8009_gpios {
+/*
 	cam_sensor_rear_active: cam_sensor_rear_active {
 		pins = "gpio1";
 		function = "normal";
@@ -306,7 +307,7 @@
 		power-source = <1>;
 		bias-pull-down;
 	};
-
+*/
 	cam_sensor_rear2_active: cam_sensor_rear2_active {
 		pins = "gpio2";
 		function = "normal";
