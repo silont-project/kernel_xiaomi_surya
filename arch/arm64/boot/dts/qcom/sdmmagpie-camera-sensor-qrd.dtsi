@@ -320,7 +320,7 @@
 		power-source = <1>;
 		bias-pull-down;
 	};
-
+/*
 	cam_sensor_front_active: cam_sensor_front_active {
 		pins = "gpio4";
 		function = "normal";
@@ -333,4 +333,5 @@
 		power-source = <1>;
 		bias-pull-down;
 	};
+*/
 };
