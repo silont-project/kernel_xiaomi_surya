@@ -124,9 +124,6 @@ Optional Properties:
 - qcom,pm-qos-wakeup-latency:
 				Similar to the above. Driver votes against deep low
 				power modes right before GPU wakes up from sleep.
-- qcom,l2pc-cpu-mask-latency:
-				The CPU mask latency in microseconds to avoid L2PC
-				on masked CPUs.
 
 - qcom,gpu-cx-ipeak:
 				CX Ipeak is a mitigation scheme which throttles cDSP frequency
