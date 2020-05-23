@@ -474,7 +474,6 @@ struct usbpd {
 
 	bool		has_dp;
 	u16			ss_lane_svid;
-#ifdef CONFIG_PD_VERIFY
 	/*for xiaomi verifed pd adapter*/
 	u32			adapter_id;
 	u32			adapter_svid;
@@ -482,7 +481,6 @@ struct usbpd {
 	struct usbpd_svid_handler svid_handler;
 	bool			verifed;
 	int			uvdm_state;
-#endif
 	/* ext msg support */
 	bool			send_get_src_cap_ext;
 	u8			src_cap_ext_db[PD_SRC_CAP_EXT_DB_LEN];
@@ -2002,14 +2000,12 @@ static void handle_vdm_rx(struct usbpd *pd, struct rx_msg *rx_msg)
 						SVDM_HDR_OBJ_POS(vdm_hdr));
 				break;
 			}
-#ifdef CONFIG_PD_VERIFY
 			if (num_vdos != 0) {
 				for (i = 0; i < num_vdos; i++) {
 					pd->adapter_id = vdos[i] & 0xFFFF;
 					usbpd_info(&pd->dev, "pd->adapter_id:0x%x\n", pd->adapter_id);
 				}
 			}
-#endif
 			pd->vdm_state = DISCOVERED_ID;
 			usbpd_send_svdm(pd, USBPD_SID,
 					USBPD_SVDM_DISCOVER_SVIDS,
@@ -2075,9 +2071,7 @@ static void handle_vdm_rx(struct usbpd *pd, struct rx_msg *rx_msg)
 				if (svid) {
 					usbpd_info(&pd->dev, "Discovered SVID: 0x%04x\n",
 							svid);
-#ifdef CONFIG_PD_VERIFY
 					pd->adapter_svid = svid;
-#endif
 					*psvid++ = svid;
 				}
 			}
@@ -2121,9 +2115,7 @@ static void handle_vdm_rx(struct usbpd *pd, struct rx_msg *rx_msg)
 		switch (cmd) {
 		case USBPD_SVDM_DISCOVER_IDENTITY:
 		case USBPD_SVDM_DISCOVER_SVIDS:
-#ifdef CONFIG_PD_VERIFY
 			pd->uvdm_state = USBPD_UVDM_NAN_ACK;
-#endif
 			break;
 		default:
 			break;
@@ -2545,10 +2537,8 @@ static void usbpd_sm(struct work_struct *w)
 		pd->peer_usb_comm = pd->peer_pr_swap = pd->peer_dr_swap = false;
 		memset(&pd->received_pdos, 0, sizeof(pd->received_pdos));
 		rx_msg_cleanup(pd);
-#ifdef CONFIG_PD_VERIFY
 		pd->verifed = false;
 		pd->uvdm_state = USBPD_UVDM_DISCONNECT;
-#endif
 		power_supply_set_property(pd->usb_psy,
 				POWER_SUPPLY_PROP_PD_IN_HARD_RESET, &val);
 
@@ -4411,8 +4401,6 @@ static ssize_t get_battery_status_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n", pd->battery_sts_dobj);
 }
 static DEVICE_ATTR_RW(get_battery_status);
-
-#ifdef CONFIG_PD_VERIFY
 static ssize_t current_state_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -4622,7 +4610,7 @@ static ssize_t request_vdm_cmd_show(struct device *dev,
 
 }
 static DEVICE_ATTR_RW(request_vdm_cmd);
-#endif
+
 static struct attribute *usbpd_attrs[] = {
 	&dev_attr_contract.attr,
 	&dev_attr_initial_pr.attr,
@@ -4647,14 +4635,12 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_get_pps_status.attr,
 	&dev_attr_get_battery_cap.attr,
 	&dev_attr_get_battery_status.attr,
-#ifdef CONFIG_PD_VERIFY
 	&dev_attr_request_vdm_cmd.attr,
 	&dev_attr_current_state.attr,
 	&dev_attr_adapter_id.attr,
 	&dev_attr_adapter_svid.attr,
 	&dev_attr_adapter_version.attr,
 	&dev_attr_usbpd_verifed.attr,
-#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(usbpd);
@@ -4724,8 +4710,6 @@ struct usbpd *devm_usbpd_get_by_phandle(struct device *dev, const char *phandle)
 	return pd;
 }
 EXPORT_SYMBOL(devm_usbpd_get_by_phandle);
-
-#ifdef CONFIG_PD_VERIFY
 static void usbpd_mi_connect_cb(struct usbpd_svid_handler *hdlr,
 		bool peer_usb_comm)
 {
@@ -4831,7 +4815,6 @@ static void usbpd_mi_vdm_received_cb(struct usbpd_svid_handler *hdlr, u32 vdm_hd
 	}
 	pd->uvdm_state = cmd;
 }
-#endif
 
 int usbpd_get_pps_status(struct usbpd *pd, u32 *pps_status)
 {
@@ -4982,7 +4965,6 @@ struct usbpd *usbpd_create(struct device *parent)
 	int ret;
 	struct usbpd *pd;
 	union power_supply_propval val = {0};
-#ifdef CONFIG_PD_VERIFY
 	struct usbpd_svid_handler svid_handler = {
 		.svid           = USB_PD_MI_SVID,
 		.vdm_received   = &usbpd_mi_vdm_received_cb,
@@ -4990,7 +4972,6 @@ struct usbpd *usbpd_create(struct device *parent)
 		.svdm_received  = NULL,
 		.disconnect     = &usbpd_mi_disconnect_cb,
 	};
-#endif
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
@@ -5159,13 +5140,11 @@ struct usbpd *usbpd_create(struct device *parent)
 	ret = power_supply_reg_notifier(&pd->psy_nb);
 	if (ret)
 		goto del_inst;
-#ifdef CONFIG_PD_VERIFY
 	pd->svid_handler = svid_handler;
 	ret = usbpd_register_svid(pd, &pd->svid_handler);
 	if (ret) {
 		usbpd_err(&pd->dev, "usbpd registration failed\n");
 	}
-#endif
 	/* force read initial power_supply values */
 	psy_changed(&pd->psy_nb, PSY_EVENT_PROP_CHANGED, pd->usb_psy);
 

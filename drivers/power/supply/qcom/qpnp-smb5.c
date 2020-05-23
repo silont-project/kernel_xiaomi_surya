@@ -214,7 +214,7 @@ static struct smb_params smb5_pm8150b_params = {
 		.name   = "AICL CONT threshold",
 		.reg    = USBIN_CONT_AICL_THRESHOLD_REG,
 		.min_u  = 4000,
-		.max_u  = 7000,//11800,
+		.max_u  = 11800,
 		.step_u = 100,
 		.get_proc = smblib_get_aicl_cont_threshold,
 		.set_proc = smblib_set_aicl_cont_threshold,
@@ -746,9 +746,7 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_TYPEC_CC_ORIENTATION,
 	POWER_SUPPLY_PROP_LOW_POWER,
 	POWER_SUPPLY_PROP_PD_ACTIVE,
-#ifdef CONFIG_PD_VERIFY
 	POWER_SUPPLY_PROP_PD_AUTHENTICATION,
-#endif
 	POWER_SUPPLY_PROP_FASTCHARGE_MODE,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_SETTLED,
 	POWER_SUPPLY_PROP_INPUT_CURRENT_NOW,
@@ -864,11 +862,9 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PD_ACTIVE:
 		val->intval = chg->pd_active;
 		break;
-#ifdef CONFIG_PD_VERIFY
 	case POWER_SUPPLY_PROP_PD_AUTHENTICATION:
 		val->intval = chg->pd_verifed;
 		break;
-#endif
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		val->intval = smblib_get_fastcharge_mode(chg);
 		break;
@@ -1003,12 +999,10 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PD_ACTIVE:
 		rc = smblib_set_prop_pd_active(chg, val);
 		break;
-#ifdef CONFIG_PD_VERIFY
 	case POWER_SUPPLY_PROP_PD_AUTHENTICATION:
 		chg->pd_verifed = val->intval;
 		rc = vote(chg->usb_icl_votable, PD_VERIFED_VOTER,
 				chg->pd_verifed, PD_VERIFED_CURRENT);
-#endif
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		power_supply_changed(chg->usb_psy);
 		if (chg->support_ffc) {
@@ -1093,9 +1087,7 @@ static int smb5_usb_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_LIMIT:
 	case POWER_SUPPLY_PROP_ADAPTER_CC_MODE:
 	case POWER_SUPPLY_PROP_APSD_RERUN:
-#ifdef CONFIG_PD_VERIFY
 	case POWER_SUPPLY_PROP_PD_AUTHENTICATION:
-#endif
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		return 1;
 	default:
@@ -1650,7 +1642,7 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_FORCE_RECHARGE,
 	POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE,
-	POWER_SUPPLY_PROP_CHARGING_ENABLED,
+	POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL,
 };
 
@@ -1698,9 +1690,6 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
 		val->intval = chg->step_chg_enabled;
-		break;
-	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
-		rc = smblib_get_prop_battery_charging_enabled(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_SW_JEITA_ENABLED:
 		val->intval = chg->sw_jeita_enabled;
@@ -1792,6 +1781,15 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		val->intval = chg->fcc_stepper_enable;
 		break;
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED:
+		rc = smblib_get_prop_battery_charging_enabled(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_LIMITED:
+		rc = smblib_get_prop_battery_charging_limited(chg, val);
+		break;
+		break;
+	case POWER_SUPPLY_PROP_BQ_INPUT_SUSPEND:
+		rc = smblib_get_prop_battery_bq_input_suspend(chg, val);
 	case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 		rc = smblib_get_prop_system_temp_level(chg, val);
 		break;
@@ -1827,9 +1825,6 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		rc = smblib_set_prop_batt_capacity(chg, val);
-		break;
-	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
-		rc = smblib_set_prop_battery_charging_enabled(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_PARALLEL_DISABLE:
 		vote(chg->pl_disable_votable, USER_VOTER, (bool)val->intval, 0);
@@ -1902,6 +1897,29 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		chg->fcc_stepper_enable = val->intval;
 		break;
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED:
+			if (val->intval == 0)
+				vote(chg->usb_icl_votable, MAIN_CHG_VOTER,
+							true, MAIN_CHARGER_STOP_ICL);
+			else
+				vote(chg->usb_icl_votable, MAIN_CHG_VOTER,
+							false, 0);
+			rerun_election(chg->usb_icl_votable);
+		break;
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_LIMITED:
+			if (val->intval == 0) {
+				vote(chg->usb_icl_votable, MAIN_CHG_VOTER,
+							false, MAIN_CHARGER_ICL);
+			} else {
+				if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3)
+					vote(chg->usb_icl_votable, MAIN_CHG_VOTER,
+								true, QC3_CHARGER_ICL);
+				else
+					vote(chg->usb_icl_votable, MAIN_CHG_VOTER,
+								true, MAIN_CHARGER_ICL);
+			}
+			rerun_election(chg->usb_icl_votable);
+		break;
 	default:
 		rc = -EINVAL;
 	}
@@ -1922,8 +1940,9 @@ static int smb5_batt_prop_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_RERUN_AICL:
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMITED:
 	case POWER_SUPPLY_PROP_STEP_CHARGING_ENABLED:
-	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_ENABLED:
+	case POWER_SUPPLY_PROP_BATTERY_CHARGING_LIMITED:
 		return 1;
 	default:
 		break;
