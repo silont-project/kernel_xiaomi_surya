@@ -555,6 +555,11 @@ static int smb5_parse_dt(struct smb5 *chip)
 			(chip->chg.chg_param.smb_version == PMI632_SUBTYPE)
 						? MICRO_1PA : MICRO_3PA;
 
+	rc = of_property_read_u32(node,
+				"qcom,typ-batt-capacity-mah",&chg->typ_batt_capacity_mah);
+	if (rc < 0)
+		chg->typ_batt_capacity_mah = -EINVAL;
+
 	rc = of_property_read_u32(node, "qcom,chg-term-src",
 			&chip->dt.term_current_src);
 	if (rc < 0)
@@ -1721,6 +1726,7 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_RECHARGE_SOC,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_FORCE_RECHARGE,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
@@ -1861,12 +1867,11 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 		rc = smblib_get_prop_from_bms(chg,
 				POWER_SUPPLY_PROP_CHARGE_FULL, val);
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		val->intval = chg->typ_batt_capacity_mah;
+		break;
 	case POWER_SUPPLY_PROP_FORCE_RECHARGE:
 		val->intval = 0;
-		break;
-	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		rc = smblib_get_prop_from_bms(chg,
-				POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
 		rc = smblib_get_prop_from_bms(chg,
