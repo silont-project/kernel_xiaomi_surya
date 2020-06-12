@@ -345,4 +345,7 @@ int dsi_panel_apply_hbm_mode(struct dsi_panel *panel);
 
 int dsi_panel_apply_cabc_mode(struct dsi_panel *panel);
 
+void dsi_panel_calc_dsi_transfer_time(struct dsi_host_common_cfg *config,
+		struct dsi_mode_info *timing);
+
 #endif /* _DSI_PANEL_H_ */
