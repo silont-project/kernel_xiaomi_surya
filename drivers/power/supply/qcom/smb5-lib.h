@@ -742,6 +742,11 @@ struct smb_charger {
 	bool			bq_input_suspend;
 
 	bool			hvdcp_recheck_status;
+#ifdef CONFIG_REVERSE_CHARGE
+	bool        reverse_charge_mode;
+	bool        reverse_charge_state;
+	unsigned int    switch_sel_gpio;
+#endif
 };
 enum quick_charge_type {
 	QUICK_CHARGE_NORMAL = 0,
