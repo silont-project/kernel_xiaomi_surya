@@ -61,6 +61,8 @@ static const unsigned int input_max_code[EV_CNT] = {
 	[EV_FF] = FF_MAX,
 };
 
+void sde_crtc_touch_notify(void);
+
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
 {
@@ -446,6 +448,7 @@ void input_event(struct input_dev *dev,
 		spin_lock_irqsave(&dev->event_lock, flags);
 		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
+		sde_crtc_touch_notify();
 	}
 }
 EXPORT_SYMBOL(input_event);
