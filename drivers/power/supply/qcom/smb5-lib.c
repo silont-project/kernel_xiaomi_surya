@@ -2118,6 +2118,34 @@ static bool is_charging_paused(struct smb_charger *chg)
 	return val & CHARGING_PAUSE_CMD_BIT;
 }
 
+static bool smblib_is_jeita_warm_charging(struct smb_charger *chg)
+{
+	union power_supply_propval pval = {0, };
+	bool usb_online;
+	int rc;
+
+	rc = smblib_get_prop_usb_online(chg, &pval);
+	if (rc < 0) {
+		smblib_err(chg, "Couldn't get usb online property rc=%d\n",
+			rc);
+		return rc;
+	}
+	usb_online = (bool)pval.intval;
+
+	if (!usb_online)
+		return false;
+
+	rc = smblib_get_prop_batt_health(chg, &pval);
+	if (rc < 0)
+		smblib_err(chg, "Couldn't get batt health rc=%d\n", rc);
+
+	/* show charging when jeita warm if real charging status is not charging */
+	if (POWER_SUPPLY_HEALTH_WARM == pval.intval)
+		return true;
+	else
+		return false;
+}
+
 int smblib_get_prop_batt_status(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
@@ -2210,6 +2238,15 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 		return rc;
 	}
 
+	if (get_client_vote_locked(chg->usb_icl_votable, JEITA_VOTER) == 0) {
+		/* show charging when JEITA_VOTER 0mA is vote to improve user experience */
+		if (batt_health != POWER_SUPPLY_HEALTH_OVERHEAT
+					&& batt_health != POWER_SUPPLY_HEALTH_COLD) {
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			return 0;
+		}
+	}
+
 	switch (stat) {
 	case TRICKLE_CHARGE:
 	case PRE_CHARGE:
@@ -2219,7 +2256,9 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 		break;
 	case TERMINATE_CHARGE:
 	case INHIBIT_CHARGE:
-		if ((batt_capa.intval <= 99) && usb_online)
+		if (POWER_SUPPLY_HEALTH_WARM == pval.intval
+			|| POWER_SUPPLY_HEALTH_OVERHEAT == pval.intval
+		    ||((batt_capa.intval <= 99) && usb_online))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -2229,7 +2268,14 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 		break;
 	case DISABLE_CHARGE:
 	case PAUSE_CHARGE:
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		/*
+		 * As from jeita status change, there is very short time not charging,
+		 * to improve user experience, we report charging at this moment.
+		 */
+		if (smblib_is_jeita_warm_charging(chg))
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
 	default:
 		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
@@ -2266,7 +2312,7 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 		return 0;
 	}
 
-	rc = smblib_read(chg, BATTERY_CHARGER_STATUS_5_REG, &stat);
+	/*rc = smblib_read(chg, BATTERY_CHARGER_STATUS_5_REG, &stat);
 	if (rc < 0) {
 		smblib_err(chg, "Couldn't read BATTERY_CHARGER_STATUS_2 rc=%d\n",
 				rc);
@@ -2277,7 +2323,7 @@ int smblib_get_prop_batt_status(struct smb_charger *chg,
 						ENABLE_FULLON_MODE_BIT;
 
 	if (!stat)
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;*/
 
 	return 0;
 }
