@@ -2486,7 +2486,7 @@ void composite_suspend(struct usb_gadget *gadget)
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	usb_gadget_set_selfpowered(gadget);
-	usb_gadget_vbus_draw(gadget, 2);
+	usb_gadget_vbus_draw(gadget, 500);    //qcom KBA-171218012414,liwei6 modify,20200730
 }
 
 void composite_resume(struct usb_gadget *gadget)
