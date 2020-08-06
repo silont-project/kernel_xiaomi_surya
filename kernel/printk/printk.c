@@ -785,9 +785,8 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	memset(&buf, 0, LOG_LINE_MAX + PREFIX_MAX);
 
 	buf[len] = '\0';
-	if (!copy_from_iter_full(buf, len, from)) {
+	if (!copy_from_iter_full(buf, len, from))
 		return -EFAULT;
-	}
 
 	/*
 	 * Extract and skip the syslog prefix <[0-9]*>. Coming from userspace
