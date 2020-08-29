@@ -71,6 +71,8 @@ module_param_named(lpm_prediction, lpm_prediction, bool, 0664);
 static bool cluster_use_deepest_state = true;
 module_param(cluster_use_deepest_state, bool, 0664);
 
+static uint32_t bias_hyst;
+module_param_named(bias_hyst, bias_hyst, uint, 0664);
 static bool lpm_ipi_prediction = true;
 module_param_named(lpm_ipi_prediction, lpm_ipi_prediction, bool, 0664);
 
