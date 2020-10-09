@@ -3711,7 +3711,7 @@ static void migrate_disabled_sched(struct task_struct *p);
  *
  * WARNING: must be called with preemption disabled!
  */
-static void __sched notrace __schedule(bool preempt)
+static void __sched notrace __schedule(bool preempt, bool spinning_lock)
 {
 	struct task_struct *prev, *next;
 	unsigned long *switch_count;
@@ -3765,7 +3765,7 @@ static void __sched notrace __schedule(bool preempt)
 	 *  - ptrace_{,un}freeze_traced() can change ->state underneath us.
 	 */
 	prev_state = prev->state;
-	if (!preempt && prev_state) {
+	if ((!preempt || spinning_lock) && prev_state) {
 		if (unlikely(signal_pending_state(prev_state, prev))) {
 			prev->state = TASK_RUNNING;
 		} else {
@@ -3851,7 +3851,7 @@ void __noreturn do_task_dead(void)
 	/* Tell freezer to ignore us: */
 	current->flags |= PF_NOFREEZE;
 
-	__schedule(false);
+	__schedule(false, false);
 	BUG();
 
 	/* Avoid "noreturn function does return" - but don't continue if BUG() is a NOP: */
@@ -3876,9 +3876,6 @@ static inline void sched_submit_work(struct task_struct *tsk)
 		preempt_enable_no_resched();
 	}
 
-	if (tsk_is_pi_blocked(tsk))
-		return;
-
 	/*
 	 * If we are going to sleep and we have plugged IO queued,
 	 * make sure to submit it to avoid deadlocks.
@@ -3900,7 +3897,7 @@ asmlinkage __visible void __sched schedule(void)
 	sched_submit_work(tsk);
 	do {
 		preempt_disable();
-		__schedule(false);
+		__schedule(false, false);
 		sched_preempt_enable_no_resched();
 	} while (need_resched());
 	sched_update_worker(tsk);
@@ -3928,7 +3925,7 @@ void __sched schedule_idle(void)
 	 */
 	WARN_ON_ONCE(current->state);
 	do {
-		__schedule(false);
+		__schedule(false, false);
 	} while (need_resched());
 }
 
@@ -3981,7 +3978,7 @@ static void __sched notrace preempt_schedule_common(void)
 		 */
 		preempt_disable_notrace();
 		preempt_latency_start(1);
-		__schedule(true);
+		__schedule(true, false);
 		preempt_latency_stop(1);
 		preempt_enable_no_resched_notrace();
 
@@ -4037,6 +4034,19 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
 NOKPROBE_SYMBOL(preempt_schedule);
 EXPORT_SYMBOL(preempt_schedule);
 
+#ifdef CONFIG_PREEMPT_RT_FULL
+void __sched notrace preempt_schedule_lock(void)
+{
+	do {
+		preempt_disable();
+		__schedule(true, true);
+		sched_preempt_enable_no_resched();
+	} while (need_resched());
+}
+NOKPROBE_SYMBOL(preempt_schedule_lock);
+EXPORT_SYMBOL(preempt_schedule_lock);
+#endif
+
 /**
  * preempt_schedule_notrace - preempt_schedule called by tracing
  *
@@ -4091,7 +4101,7 @@ asmlinkage __visible void __sched notrace preempt_schedule_notrace(void)
 		 * we must force it manually.
 		 */
 		start_critical_timings();
-		__schedule(true);
+		__schedule(true, false);
 		stop_critical_timings();
 		exception_exit(prev_ctx);
 
@@ -4121,7 +4131,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 	do {
 		preempt_disable();
 		local_irq_enable();
-		__schedule(true);
+		__schedule(true, false);
 		local_irq_disable();
 		sched_preempt_enable_no_resched();
 	} while (need_resched());
