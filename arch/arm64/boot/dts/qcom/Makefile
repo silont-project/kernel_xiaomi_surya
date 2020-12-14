@@ -1,4 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
+ifeq ($(CONFIG_BOARD_SURYA),y)
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+dtbo-$(CONFIG_ARCH_SDMMAGPIE) += \
+       sdmmagpie-idp-overlay.dtbo
+
+sdmmagpie-idp-overlay.dtbo-base := sdmmagpie.dtb
+endif
+else
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8096-db820c.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= ipq8074-hk01.dtb
@@ -370,6 +378,8 @@ dtb-$(CONFIG_ARCH_SDXPRAIRIE) += sdxprairie-rumi.dtb \
 	sdxprairie-v2-mtp-v1.1-cpe.dtb \
 	sdxprairie-v2-pcie-ep-mtp.dtb \
 	sdxprairie-v2-makena-pcie-ep-mtp.dtb
+
+endif #ifeq ($(CONFIG_BOARD_SURYA),y)
 
 ifeq ($(CONFIG_ARM64),y)
 always		:= $(dtb-y)
