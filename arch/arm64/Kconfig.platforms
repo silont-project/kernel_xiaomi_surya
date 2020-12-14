@@ -343,4 +343,9 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config BOARD_SURYA
+	bool "Xiaomi Surya Family"
+	depends on ARCH_QCOM
+	select ARCH_SDMMAGPIE
+
 endmenu
