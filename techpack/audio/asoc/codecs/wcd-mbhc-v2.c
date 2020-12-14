@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -1408,8 +1411,8 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 		/* Insertion debounce set to 48ms */
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 4);
 	} else {
-		/* Insertion debounce set to 96ms */
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 6);
+		/* Insertion debounce set to 256ms */
+		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 9);
 	}
 
 	/* Button Debounce set to 16ms */
@@ -1576,6 +1579,44 @@ static int wcd_mbhc_set_keycode(struct wcd_mbhc *mbhc)
 	if (btn_key_code[0])
 		mbhc->is_btn_already_regd = true;
 	return result;
+}
+
+static int wcd_mbhc_non_usb_c_event_changed(struct notifier_block *nb,
+					unsigned long evt, void *ptr)
+{
+	int ret;
+	union power_supply_propval mode;
+	struct wcd_mbhc *mbhc = container_of(nb, struct wcd_mbhc, fsa_nb);
+
+	ret = power_supply_get_property(ptr,
+			POWER_SUPPLY_PROP_TYPEC_MODE, &mode);
+
+	switch (mode.intval) {
+	case POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER:
+		dev_err(mbhc->codec->component.dev, "%s: report Type-C usb headphone\n", __func__);
+		if (mbhc->usbc_mode == mode.intval)
+			break; /* filter notifications received before */
+		wcd_mbhc_jack_report(mbhc, &mbhc->usb_3_5_jack,
+					(SND_JACK_HEADSET | SND_JACK_UNSUPPORTED),
+					WCD_MBHC_JACK_USB_3_5_MASK);
+		mbhc->usbc_mode = mode.intval;
+		break;
+	case POWER_SUPPLY_TYPEC_NONE:
+		if (mbhc->usbc_mode == mode.intval)
+			break; /* filter notifications received before */
+		if (mbhc->usbc_mode == POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER) {
+			mbhc->usbc_mode = mode.intval - 1;
+			break;
+		}
+		wcd_mbhc_jack_report(mbhc, &mbhc->usb_3_5_jack, 0,
+					WCD_MBHC_JACK_USB_3_5_MASK);
+		mbhc->usbc_mode = mode.intval;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
@@ -1906,6 +1947,15 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 		mbhc->fsa_nb.notifier_call = wcd_mbhc_usbc_ana_event_handler;
 		mbhc->fsa_nb.priority = 0;
 		rc = fsa4480_reg_notifier(&mbhc->fsa_nb, mbhc->fsa_np);
+	} else {
+		mbhc->fsa_nb.notifier_call = wcd_mbhc_non_usb_c_event_changed;
+		mbhc->fsa_nb.priority = 0;
+		rc = power_supply_reg_notifier(&mbhc->fsa_nb);
+		if (rc) {
+			dev_err(card->dev, "%s: power supply registration failed\n",
+					__func__);
+			goto err;
+		}
 	}
 
 	return rc;
@@ -1964,8 +2014,10 @@ void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 			if (config->usbc_force_gpio_p)
 				of_node_put(config->usbc_force_gpio_p);
 		}
+	} else {
+		if (mbhc->fsa_nb.notifier_call != NULL)
+			power_supply_unreg_notifier(&mbhc->fsa_nb);
 	}
-
 
 	pr_debug("%s: leave\n", __func__);
 }
@@ -2098,6 +2150,14 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		if (ret) {
 			pr_err("%s: Failed to set code for btn-0\n",
 				__func__);
+			return ret;
+		}
+
+		ret = snd_soc_card_jack_new(codec->component.card,
+					    "USB_3_5 Jack", WCD_MBHC_JACK_USB_3_5_MASK,
+					    &mbhc->usb_3_5_jack, NULL, 0);
+		if (ret) {
+			pr_err("%s: Failed to create new jack USB_3_5 Jack\n", __func__);
 			return ret;
 		}
 
