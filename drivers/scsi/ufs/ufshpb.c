@@ -582,8 +582,8 @@ static int ufshpb_set_pre_req(struct ufshpb_lu *hpb, struct scsi_cmnd *cmd,
 
 	/* 1. request setup */
 	blk_rq_append_bio(req, &bio);
-	req->cmd_flags = REQ_OP_WRITE | REQ_SYNC | REQ_OP_SCSI_OUT;
-	req->rq_flags = RQF_QUIET | RQF_PREEMPT;
+	req->cmd_flags = REQ_OP_WRITE | REQ_SYNC | REQ_OP_SCSI_OUT | REQ_PREEMPT;
+	req->rq_flags = RQF_QUIET;
 	req->timeout = msecs_to_jiffies(30000);
 	req->end_io_data = (void *)pre_req;
 	req->end_io = ufshpb_pre_req_compl_fn;
@@ -1335,8 +1335,8 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 
 	/* 1. request setup */
 	blk_rq_append_bio(req, &bio); /* req->__data_len is setted */
-	req->cmd_flags = REQ_OP_READ | REQ_OP_SCSI_IN;
-	req->rq_flags = RQF_QUIET | RQF_PREEMPT;
+	req->cmd_flags = REQ_OP_READ | REQ_OP_SCSI_IN | REQ_PREEMPT;
+	req->rq_flags = RQF_QUIET;
 	req->timeout = msecs_to_jiffies(30000);
 	req->end_io_data = (void *)map_req;
 
@@ -1881,8 +1881,8 @@ static int ufshpb_execute_map_req_wait(struct ufshpb_lu *hpb,
 	/* 1. request setup*/
 	blk_rq_append_bio(req, &bio); /* req->__data_len */
 	req->timeout = msecs_to_jiffies(30000);
-	req->cmd_flags |= REQ_OP_READ;
-	req->rq_flags |= RQF_QUIET | RQF_PREEMPT;
+	req->cmd_flags |= REQ_OP_READ | REQ_PREEMPT;
+	req->rq_flags |= RQF_QUIET;
 
 	/* 2. scsi_request setup */
 	rq = scsi_req(req);
