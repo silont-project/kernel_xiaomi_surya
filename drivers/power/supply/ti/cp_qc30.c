@@ -920,7 +920,7 @@ void cp_statemachine(unsigned int port)
 		break;
 
 	case CP_STATE_SW_ENTRY_2:
-		pr_err("vbat=%d,vbus=%d\n", pm_state.bq2597x.vbat_volt, pm_state.bq2597x.vbus_volt);
+		pr_debug("vbat=%d,vbus=%d\n", pm_state.bq2597x.vbat_volt, pm_state.bq2597x.vbus_volt);
 		pr_debug("enable sw charger and check enable\n");
 		cp_enable_sw(true);
 		usb_icl_value = cp_get_effective_usb_icl_val();
