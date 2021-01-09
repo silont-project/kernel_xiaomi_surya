@@ -1212,7 +1212,7 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 
 	if (idx == CONNECTOR_PROP_HDR_METADATA) {
 		rc = _sde_connector_set_ext_hdr_info(c_conn,
-			c_state, (void __user *)(uintptr_t)val);
+			c_state, (void *)(uintptr_t)val);
 		if (rc)
 			SDE_ERROR_CONN(c_conn, "cannot set hdr info %d\n", rc);
 	}
@@ -2327,21 +2327,6 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 				&dsi_display->panel->hdr_props,
 				sizeof(dsi_display->panel->hdr_props),
 				CONNECTOR_PROP_HDR_INFO);
-		}
-
-		/* register esd irq and enable it after panel enabled */
-		if (dsi_display && dsi_display->panel &&
-			dsi_display->panel->esd_config.esd_err_irq_gpio > 0) {
-			rc = request_threaded_irq(dsi_display->panel->esd_config.esd_err_irq,
-									  NULL, esd_err_irq_handle,
-									  dsi_display->panel->esd_config.esd_err_irq_flags,
-									  "esd_err_irq", c_conn);
-			if (rc < 0) {
-				pr_err("%s: request esd irq %d failed\n",
-						__func__, dsi_display->panel->esd_config.esd_err_irq);
-				dsi_display->panel->esd_config.esd_err_irq = 0;
-			} else
-				pr_info("%s: Request esd irq succeed!\n", __func__);
 		}
 	}
 
