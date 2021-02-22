@@ -3761,7 +3761,11 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	err = ufshcd_get_read_lock(hba, cmd->device->lun);
 	if (unlikely(err < 0)) {
-		if (err == -EPERM || err == -EAGAIN) {
+		if (err == -EPERM) {
+			err = SCSI_MLQUEUE_HOST_BUSY;
+			goto out_pm_qos;
+		}
+		if (err == -EAGAIN) {
 			err = SCSI_MLQUEUE_HOST_BUSY;
 			goto out_pm_qos;
 		}
@@ -3921,7 +3925,8 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 			if (has_read_lock)
 				ufshcd_put_read_lock(hba);
 			cmd->scsi_done(cmd);
-			return 0;
+			err = 0;
+			goto out_pm_qos;
 		}
 		goto out;
 	}
@@ -6500,6 +6505,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 			__ufshcd_hibern8_release(hba, false);
 			req = cmd->request;
 			if (req) {
+				ufshcd_pm_qos_put(hba);
 				/* Update IO svc time latency histogram */
 				if (req->lat_hist_enabled) {
 					ktime_t completion;
@@ -6572,6 +6578,8 @@ void ufshcd_abort_outstanding_transfer_requests(struct ufs_hba *hba, int result)
 			/* Mark completed command as NULL in LRB */
 			lrbp->cmd = NULL;
 			ufshcd_release_all(hba);
+			if (cmd->request)
+				ufshcd_pm_qos_put(hba);
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
 		} else if (lrbp->command_type == UTP_CMD_TYPE_DEV_MANAGE) {
