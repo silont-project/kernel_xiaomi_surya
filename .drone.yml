@@ -1,0 +1,20 @@
+--- 
+clone: 
+  depth: 1
+kind: pipeline
+name: azrimPipeline
+steps: 
+  - 
+    environment: 
+      TG_TOKEN: 
+        from_secret: TOKEN
+      CHANNEL_ID:
+        from_secret: CHATID
+    commands: 
+      - "apt update -qqy && apt install -qqy openjdk-11-jre-headless"
+      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/build | bash"
+    image: fadlyas/kernel_dockerfile:latest
+    name: azrim
+    trigger: 
+      branch: 
+        - FBK
