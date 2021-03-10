@@ -832,7 +832,7 @@ static int __ipa_validate_flt_rule(const struct ipa_flt_rule_i *rule,
 					"PDN index should be 0 when action is not pass to NAT\n");
 				goto error;
 			} else {
-				if (rule->pdn_idx >= IPA_MAX_PDN_NUM) {
+				if (rule->pdn_idx >= ipa3_get_max_pdn()) {
 					IPAERR_RL("PDN index %d is too large\n",
 						rule->pdn_idx);
 					goto error;
@@ -924,7 +924,10 @@ static int __ipa_finish_flt_rule_add(struct ipa3_flt_tbl *tbl,
 {
 	int id;
 
-	tbl->rule_cnt++;
+	if (tbl->rule_cnt < IPA_RULE_CNT_MAX)
+		tbl->rule_cnt++;
+	else
+		return -EINVAL;
 	if (entry->rt_tbl)
 		entry->rt_tbl->ref_cnt++;
 	id = ipa3_id_alloc(entry);

@@ -263,6 +263,7 @@ struct mhi_config {
 	uint32_t	mhi_reg_len;
 	uint32_t	version;
 	uint32_t	event_rings;
+	uint32_t	hw_event_rings;
 	uint32_t	channels;
 	uint32_t	chdb_offset;
 	uint32_t	erdb_offset;
@@ -270,7 +271,8 @@ struct mhi_config {
 
 #define NUM_CHANNELS			128
 #define HW_CHANNEL_BASE			100
-#define HW_CHANNEL_END			107
+#define NUM_HW_CHANNELS			15
+#define HW_CHANNEL_END			110
 #define MHI_ENV_VALUE			2
 #define MHI_MASK_ROWS_CH_EV_DB		4
 #define TRB_MAX_DATA_SIZE		8192
@@ -278,6 +280,8 @@ struct mhi_config {
 
 /* maximum transfer completion events buffer */
 #define NUM_TR_EVENTS_DEFAULT			128
+#define NUM_CMD_EVENTS_DEFAULT			20
+
 
 /* Set flush threshold to 80% of event buf size */
 #define MHI_CMPL_EVT_FLUSH_THRSHLD(n) ((n * 8) / 10)
@@ -361,7 +365,8 @@ enum mhi_dev_ch_operation {
 enum mhi_dev_tr_compl_evt_type {
 	SEND_EVENT_BUFFER,
 	SEND_EVENT_RD_OFFSET,
-	SEND_MSI
+	SEND_MSI,
+	SEND_CMD_CMP,
 };
 
 enum mhi_dev_transfer_type {
@@ -422,7 +427,8 @@ static inline void mhi_dev_ring_inc_index(struct mhi_dev_ring *ring,
 #define TRACE_DATA_MAX				128
 #define MHI_DEV_DATA_MAX			512
 
-#define MHI_DEV_MMIO_RANGE			0xc80
+#define MHI_DEV_MMIO_RANGE			0xb80
+#define MHI_DEV_MMIO_OFFSET			0x100
 
 struct ring_cache_req {
 	struct completion	*done;
@@ -448,6 +454,18 @@ struct event_req {
 	void			(*msi_cb)(void *req);
 	struct list_head	list;
 	u32			flush_num;
+	bool		is_cmd_cpl;
+};
+
+struct mhi_cmd_cmpl_ctx {
+	/* Indices for completion event buffer */
+	uint32_t			cmd_buf_rp;
+	uint32_t			cmd_buf_wp;
+	uint32_t			cmd_buf_size;
+	bool				mem_allocated;
+	struct list_head	cmd_req_buffers;
+	struct event_req		*ereqs;
+	union mhi_dev_ring_element_type *cmd_events;
 };
 
 struct mhi_dev_channel {
@@ -528,6 +546,7 @@ struct mhi_dev {
 	struct mhi_dev_ring		*ring;
 	int				mhi_irq;
 	struct mhi_dev_channel		*ch;
+	struct mhi_cmd_cmpl_ctx			*cmd_ctx;
 
 	int				ctrl_int;
 	int				cmd_int;
@@ -553,7 +572,7 @@ struct mhi_dev {
 	size_t			ch_ring_start;
 
 	/* IPA Handles */
-	u32				ipa_clnt_hndl[4];
+	u32				ipa_clnt_hndl[NUM_HW_CHANNELS];
 	struct workqueue_struct		*ring_init_wq;
 	struct work_struct		ring_init_cb_work;
 	struct work_struct		re_init;
@@ -981,6 +1000,12 @@ int mhi_dev_mmio_get_cmd_db(struct mhi_dev_ring *ring, uint64_t *wr_offset);
  * @value:	Value of the EXEC EVN.
  */
 int mhi_dev_mmio_set_env(struct mhi_dev *dev, uint32_t value);
+
+/**
+ * mhi_dev_mmio_clear_reset() - Clear the reset bit
+ * @dev:	MHI device structure.
+ */
+int mhi_dev_mmio_clear_reset(struct mhi_dev *dev);
 
 /**
  * mhi_dev_mmio_reset() - Reset the MMIO done as part of initialization.

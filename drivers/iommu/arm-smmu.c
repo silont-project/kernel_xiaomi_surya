@@ -2202,6 +2202,14 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	cfg->cbndx = ret;
 
+	if (!(smmu_domain->attributes & (1 << DOMAIN_ATTR_GEOMETRY))) {
+		/* Geometry is not set use the default geometry */
+		domain->geometry.aperture_start = 0;
+		domain->geometry.aperture_end = (1UL << ias) - 1;
+		if (domain->geometry.aperture_end >= SZ_1G * 4ULL)
+			domain->geometry.aperture_end = (SZ_1G * 4ULL) - 1;
+	}
+
 	if (arm_smmu_is_slave_side_secure(smmu_domain)) {
 		smmu_domain->pgtbl_cfg = (struct io_pgtable_cfg) {
 			.quirks         = quirks,
@@ -2212,6 +2220,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			},
 			.tlb		= tlb_ops,
 			.iommu_dev      = smmu->dev,
+			.iova_base	= domain->geometry.aperture_start,
+			.iova_end	= domain->geometry.aperture_end,
 		};
 		fmt = ARM_MSM_SECURE;
 	} else  {
@@ -2222,6 +2232,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 			.oas		= oas,
 			.tlb		= tlb_ops,
 			.iommu_dev	= smmu->dev,
+			.iova_base	= domain->geometry.aperture_start,
+			.iova_end	= domain->geometry.aperture_end,
 		};
 	}
 
@@ -2737,20 +2749,33 @@ static int arm_smmu_assign_table(struct arm_smmu_domain *smmu_domain)
 	int ret = 0;
 	int dest_vmids[2] = {VMID_HLOS, smmu_domain->secure_vmid};
 	int dest_perms[2] = {PERM_READ | PERM_WRITE, PERM_READ};
+	int dest_vmids1[1] = {smmu_domain->secure_vmid};
+	int dest_perms1[1] = {PERM_READ};
 	int source_vmid = VMID_HLOS;
 	struct arm_smmu_pte_info *pte_info, *temp;
 
 	if (!arm_smmu_is_master_side_secure(smmu_domain))
 		return ret;
 
-	list_for_each_entry(pte_info, &smmu_domain->pte_info_list, entry) {
-		ret = hyp_assign_phys(virt_to_phys(pte_info->virt_addr),
+	if (smmu_domain->secure_vmid == VMID_CP_CAMERA_ENCODE) {
+		list_for_each_entry(pte_info, &smmu_domain->pte_info_list,
+								entry) {
+			ret = hyp_assign_phys(virt_to_phys(pte_info->virt_addr),
 				      PAGE_SIZE, &source_vmid, 1,
-				      dest_vmids, dest_perms, 2);
-		if (WARN_ON(ret))
-			break;
+				      dest_vmids1, dest_perms1, 1);
+			if (WARN_ON(ret))
+				break;
+		}
+	} else {
+		list_for_each_entry(pte_info, &smmu_domain->pte_info_list,
+								entry) {
+			ret = hyp_assign_phys(virt_to_phys(pte_info->virt_addr),
+					PAGE_SIZE, &source_vmid, 1,
+					dest_vmids, dest_perms, 2);
+			if (WARN_ON(ret))
+				break;
+		}
 	}
-
 	list_for_each_entry_safe(pte_info, temp, &smmu_domain->pte_info_list,
 								entry) {
 		list_del(&pte_info->entry);
@@ -2770,13 +2795,19 @@ static void arm_smmu_unassign_table(struct arm_smmu_domain *smmu_domain)
 	if (!arm_smmu_is_master_side_secure(smmu_domain))
 		return;
 
-	list_for_each_entry(pte_info, &smmu_domain->unassign_list, entry) {
-		ret = hyp_assign_phys(virt_to_phys(pte_info->virt_addr),
+	if (dest_vmids == VMID_HLOS) {
+		pr_err("%s no call scm call for only HLOS\n",
+			__func__);
+	} else {
+		list_for_each_entry(pte_info, &smmu_domain->unassign_list,
+								entry) {
+			ret = hyp_assign_phys(virt_to_phys(pte_info->virt_addr),
 				      PAGE_SIZE, source_vmlist, 2,
 				      &dest_vmids, &dest_perms, 1);
-		if (WARN_ON(ret))
-			break;
-		free_pages_exact(pte_info->virt_addr, pte_info->size);
+			if (WARN_ON(ret))
+				break;
+			free_pages_exact(pte_info->virt_addr, pte_info->size);
+		}
 	}
 
 	list_for_each_entry_safe(pte_info, temp, &smmu_domain->unassign_list,
@@ -3099,12 +3130,12 @@ static size_t arm_smmu_map_sg(struct iommu_domain *domain, unsigned long iova,
 
 out:
 	arm_smmu_assign_table(smmu_domain);
+	arm_smmu_secure_domain_unlock(smmu_domain);
 
 	if (size_to_unmap) {
 		arm_smmu_unmap(domain, __saved_iova_start, size_to_unmap);
 		iova = __saved_iova_start;
 	}
-	arm_smmu_secure_domain_unlock(smmu_domain);
 	arm_smmu_release_prealloc_memory(smmu_domain, &nonsecure_pool);
 	return iova - __saved_iova_start;
 }
@@ -3509,7 +3540,7 @@ static int arm_smmu_domain_get_attr(struct iommu_domain *domain,
 			ret = -ENODEV;
 			break;
 		}
-		info->pmds = smmu_domain->pgtbl_cfg.av8l_fast_cfg.pmds;
+		info->ops = smmu_domain->pgtbl_ops;
 		ret = 0;
 		break;
 	}
@@ -3770,7 +3801,6 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 		ret = 0;
 		break;
 	}
-
 	case DOMAIN_ATTR_CB_STALL_DISABLE:
 		if (*((int *)data))
 			smmu_domain->attributes |=
@@ -3783,6 +3813,44 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 				1 << DOMAIN_ATTR_NO_CFRE;
 		ret = 0;
 		break;
+	case DOMAIN_ATTR_GEOMETRY: {
+		struct iommu_domain_geometry *geometry =
+				(struct iommu_domain_geometry *)data;
+
+		if (smmu_domain->smmu != NULL) {
+			dev_err(smmu_domain->smmu->dev,
+			  "cannot set geometry attribute while attached\n");
+			ret = -EBUSY;
+			break;
+		}
+
+		if (geometry->aperture_start >= SZ_1G * 4ULL ||
+		    geometry->aperture_end >= SZ_1G * 4ULL) {
+			pr_err("fastmap does not support IOVAs >= 4GB\n");
+			ret = -EINVAL;
+			break;
+		}
+		if (smmu_domain->attributes
+			  & (1 << DOMAIN_ATTR_GEOMETRY)) {
+			if (geometry->aperture_start
+					< domain->geometry.aperture_start)
+				domain->geometry.aperture_start =
+					geometry->aperture_start;
+
+			if (geometry->aperture_end
+					> domain->geometry.aperture_end)
+				domain->geometry.aperture_end =
+					geometry->aperture_end;
+		} else {
+			smmu_domain->attributes |= 1 << DOMAIN_ATTR_GEOMETRY;
+			domain->geometry.aperture_start =
+						geometry->aperture_start;
+			domain->geometry.aperture_end = geometry->aperture_end;
+		}
+		ret = 0;
+		break;
+	}
+
 	default:
 		ret = -ENODEV;
 	}
