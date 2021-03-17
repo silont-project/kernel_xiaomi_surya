@@ -11,8 +11,8 @@ steps:
       CHANNEL_ID:
         from_secret: CHATID
     commands: 
-      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/build | bash"
-    image: fadlyas/kernel_dockerfile:latest
+      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/buildnojava | bash"
+    image: azrim89/kernel:latest
     name: Build
     trigger: 
       branch: 
