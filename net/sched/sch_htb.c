@@ -1509,8 +1509,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	sch_tree_unlock(sch);
 
 	if (warn)
-		pr_warn("HTB: quantum of class %X is %s. Consider r2q change.\n",
-			    cl->common.classid, (warn == -1 ? "small" : "big"));
+//		pr_warn("HTB: quantum of class %X is %s. Consider r2q change.\n",
+//			    cl->common.classid, (warn == -1 ? "small" : "big"));
 
 	qdisc_class_hash_grow(sch, &q->clhash);
 
