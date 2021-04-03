@@ -10,10 +10,14 @@ steps:
         from_secret: TOKEN
       CHANNEL_ID:
         from_secret: CHATID
+      SSHKEY:
+        from_secret: SSHKEY
+      GITHUB_TOKEN:
+        from_secret: GHTOKEN
     commands: 
-      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/buildnojava | bash"
+      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/weekly | bash"
     image: azrim89/kernel:latest
     name: Build
     trigger: 
       branch: 
-        - FBK
+        - weekly
