@@ -706,7 +706,9 @@ void exit_oom_victim(void)
 void oom_killer_enable(void)
 {
 	oom_killer_disabled = false;
-	pr_debug("OOM killer enabled.\n");
+#ifdef CONFIG_DEBUG_KERNEL
+	pr_info("OOM killer enabled.\n");
+#endif
 }
 
 /**
@@ -743,8 +745,9 @@ bool oom_killer_disable(signed long timeout)
 		oom_killer_enable();
 		return false;
 	}
-	pr_debug("OOM killer disabled.\n");
-
+#ifdef CONFIG_DEBUG_KERNEL
+	pr_info("OOM killer disabled.\n");
+#endif
 	return true;
 }
 
