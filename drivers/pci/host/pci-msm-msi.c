@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -491,7 +491,126 @@ static int msm_msi_alloc_domains(struct msm_msi *msi)
 	return 0;
 }
 
-/* control access to Synopsys PCIe MSI registers */
+static int msm_msi_snps_irq_setup(struct msm_msi *msi)
+{
+	int i, index, ret;
+	struct msm_msi_grp *msi_grp;
+	struct msm_msi_irq *msi_irq;
+	unsigned int irq = 0;
+
+	/* setup each MSI group. nr_hwirqs == nr_grps */
+	for (i = 0; i < msi->nr_hwirqs; i++) {
+		irq = irq_of_parse_and_map(msi->of_node, i);
+		if (!irq) {
+			dev_err(msi->dev,
+				"MSI: failed to parse/map interrupt\n");
+			ret = -ENODEV;
+			goto free_irqs;
+		}
+
+		ret = enable_irq_wake(irq);
+		if (ret) {
+			dev_err(msi->dev,
+				"MSI: Unable to set enable_irq_wake for interrupt: %d: %d\n",
+				i, irq);
+			goto free_irq;
+		}
+
+		msi_grp = &msi->grps[i];
+		msi_grp->int_en_reg = msi->pcie_cfg +
+				PCIE_MSI_CTRL_INT_N_EN_OFFS(i);
+		msi_grp->int_mask_reg = msi->pcie_cfg +
+				PCIE_MSI_CTRL_INT_N_MASK_OFFS(i);
+		msi_grp->int_status_reg = msi->pcie_cfg +
+				PCIE_MSI_CTRL_INT_N_STATUS_OFFS(i);
+
+		for (index = 0; index < MSI_IRQ_PER_GRP; index++) {
+			msi_irq = &msi_grp->irqs[index];
+
+			msi_irq->grp = msi_grp;
+			msi_irq->grp_index = index;
+			msi_irq->pos = (i * MSI_IRQ_PER_GRP) + index;
+			msi_irq->hwirq = irq;
+		}
+
+		irq_set_chained_handler_and_data(irq, msm_msi_snps_handler,
+						msi_grp);
+	}
+
+	return 0;
+
+free_irq:
+	irq_dispose_mapping(irq);
+free_irqs:
+	for (--i; i >= 0; i--) {
+		irq = msi->grps[i].irqs[0].hwirq;
+
+		irq_set_chained_handler_and_data(irq, NULL, NULL);
+		disable_irq_wake(irq);
+		irq_dispose_mapping(irq);
+	}
+
+	return ret;
+}
+
+static int msm_msi_qgic_irq_setup(struct msm_msi *msi)
+{
+	int i, ret;
+	u32 index, grp;
+	struct msm_msi_grp *msi_grp;
+	struct msm_msi_irq *msi_irq;
+	unsigned int irq = 0;
+
+	for (i = 0; i < msi->nr_hwirqs; i++) {
+		irq = irq_of_parse_and_map(msi->of_node, i);
+		if (!irq) {
+			dev_err(msi->dev,
+				"MSI: failed to parse/map interrupt\n");
+			ret = -ENODEV;
+			goto free_irqs;
+		}
+
+		ret = enable_irq_wake(irq);
+		if (ret) {
+			dev_err(msi->dev,
+				"MSI: Unable to set enable_irq_wake for interrupt: %d: %d\n",
+				i, irq);
+			goto free_irq;
+		}
+
+		grp = i / MSI_IRQ_PER_GRP;
+		index = i % MSI_IRQ_PER_GRP;
+		msi_grp = &msi->grps[grp];
+		msi_irq = &msi_grp->irqs[index];
+
+		msi_irq->grp = msi_grp;
+		msi_irq->grp_index = index;
+		msi_irq->pos = i;
+		msi_irq->hwirq = irq;
+
+		irq_set_chained_handler_and_data(irq, msm_msi_qgic_handler,
+						msi);
+	}
+
+	return 0;
+
+free_irq:
+	irq_dispose_mapping(irq);
+free_irqs:
+	for (--i; i >= 0; i--) {
+		grp = i / MSI_IRQ_PER_GRP;
+		index = i % MSI_IRQ_PER_GRP;
+		irq = msi->grps[grp].irqs[index].hwirq;
+
+		irq_set_chained_handler_and_data(irq, NULL, NULL);
+		disable_irq_wake(irq);
+		irq_dispose_mapping(irq);
+	}
+
+	return ret;
+}
+
+/* control access to PCIe MSI registers */
 void msm_msi_config_access(struct irq_domain *domain, bool allow)
 {
 	struct msm_msi *msi = domain->parent->host_data;
