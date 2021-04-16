@@ -614,7 +614,6 @@ void irq_init_desc(unsigned int irq)
 int generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-
 	if (!desc)
 		return -EINVAL;
 	generic_handle_irq_desc(desc);
