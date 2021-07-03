@@ -138,3 +138,6 @@ out/
 qcacld
 wg
 regen
+
+# Builder data for LINUX_COMPILE_BY/HOST replacement on sandboxed ABS
+.builderdata
