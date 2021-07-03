@@ -137,3 +137,6 @@ best-caf-kernel.py
 out/
 qcacld
 wg
+
+# Builder data for LINUX_COMPILE_BY/HOST replacement on sandboxed ABS
+.builderdata
