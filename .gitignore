@@ -132,6 +132,9 @@ kernel/configs/android-*.cfg
 #
 Android.bp
 
+# Builder data for LINUX_COMPILE_BY/HOST replacement on sandboxed ABS
+.builderdata
+
 # Ignore personal files
 b
 best-caf-kernel.py
