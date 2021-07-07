@@ -12,6 +12,7 @@ obj-$(CONFIG_ZSTD_COMPRESS) += zstd_compress.o
 obj-$(CONFIG_ZSTD_DECOMPRESS) += zstd_decompress.o
 
 ccflags-y += -Wno-error=deprecated-declarations
+ccflags-y += -Ofast
 
 obj-y := \
 		zstd_compress_module.o \
