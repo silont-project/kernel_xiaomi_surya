@@ -149,7 +149,7 @@ struct gadget_config_name {
 };
 
 #define MAX_USB_STRING_LEN	126
-#define USB_MAX_STRING_WITH_NULL_LEN	(USB_MAX_STRING_LEN+1)
+#define MAX_USB_STRING_WITH_NULL_LEN	(MAX_USB_STRING_LEN+1)
 
 static int usb_string_copy(const char *s, char **s_copy)
 {
