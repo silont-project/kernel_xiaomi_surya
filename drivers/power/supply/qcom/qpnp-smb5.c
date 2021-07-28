@@ -2127,7 +2127,7 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 		if(val->intval == 0)
 			break;
 		chg->reverse_charge_mode = val->intval;
-		pr_err("longcheer,%s,reverse_charge_mode=%d,reverse_state=%d\n",
+		pr_debug("longcheer,%s,reverse_charge_mode=%d,reverse_state=%d\n",
 			__func__,chg->reverse_charge_mode,chg->reverse_charge_state);
 		if(chg->reverse_charge_mode != chg->reverse_charge_state){
 			chg->reverse_charge_state = chg->reverse_charge_mode;
@@ -3943,7 +3943,7 @@ static int step_otg_chg_notifier_call(struct notifier_block *nb,
 
 	if (event != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
-	pr_err("longcheer ,%s:reverse_charge_state=%d\n",__func__,chg->reverse_charge_state);
+	pr_debug("longcheer ,%s:reverse_charge_state=%d\n",__func__,chg->reverse_charge_state);
 	if(!chg->reverse_charge_state)
 		return NOTIFY_OK;
 
