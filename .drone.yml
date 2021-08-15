@@ -16,4 +16,4 @@ steps:
     name: Build
     trigger: 
       branch: 
-        - staging
+        - main
