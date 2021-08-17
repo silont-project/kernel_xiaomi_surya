@@ -354,6 +354,7 @@ static struct platform_driver xiaomi_touch_device_driver = {
 	.driver		= {
 		.name	= "xiaomi-touch",
 		.of_match_table = of_match_ptr(xiaomi_touch_of_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	}
 };
 
