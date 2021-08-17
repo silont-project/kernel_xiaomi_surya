@@ -518,16 +518,16 @@ else
 endif
 
 # Compile all log levels by default
-CONFIG_WLAN_LOG_FATAL := n
-CONFIG_WLAN_LOG_ERROR := n
-CONFIG_WLAN_LOG_WARN := n
-CONFIG_WLAN_LOG_INFO := n
+CONFIG_WLAN_LOG_FATAL := y
+CONFIG_WLAN_LOG_ERROR := y
+CONFIG_WLAN_LOG_WARN := y
+CONFIG_WLAN_LOG_INFO := y
 
 #Enable OL debug and wmi unified functions
 CONFIG_ATH_PERF_PWR_OFFLOAD := y
 
 #Disable packet log
-CONFIG_REMOVE_PKT_LOG := y
+CONFIG_REMOVE_PKT_LOG := n
 
 #Enable 11AC TX
 ifeq ($(CONFIG_ROME_IF),pci)
@@ -1029,9 +1029,9 @@ CONFIG_WLAN_FEATURE_DP_BUS_BANDWIDTH := y
 ifeq ($(CONFIG_CNSS_QCA6490), y)
 
 #Enable 6 GHz Band
-CONFIG_BAND_6GHZ := n
-CONFIG_RX_FISA := n
-CONFIG_MORE_TX_DESC := n
+CONFIG_BAND_6GHZ := y
+CONFIG_RX_FISA := y
+CONFIG_MORE_TX_DESC := y
 
 endif
 
