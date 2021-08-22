@@ -1154,7 +1154,7 @@ static struct tas256x_config_info* tas256x_add_config(unsigned char* config_data
     cfg_info->nblocks = SMS_HTONL(config_data[config_offset], config_data[config_offset+1], 
         config_data[config_offset+2], config_data[config_offset+3]);
     config_offset +=  4;
-    pr_info("cfg_info->num_blocks = %u\n", cfg_info->nblocks);
+    pr_debug("cfg_info->num_blocks = %u\n", cfg_info->nblocks);
     cfg_info->blk_data = (struct tas256x_block_data**)kzalloc(
 		cfg_info->nblocks*sizeof(struct tas256x_block_data*), 
 		GFP_KERNEL);
@@ -1177,11 +1177,11 @@ static struct tas256x_config_info* tas256x_add_config(unsigned char* config_data
         }
         cfg_info->blk_data[i]->dev_idx = config_data[config_offset];
         config_offset++;
-        pr_info("blk_data(%d).dev_idx = 0x%02x\n", i, 
+        pr_debug("blk_data(%d).dev_idx = 0x%02x\n", i, 
             cfg_info->blk_data[i]->dev_idx);
         cfg_info->blk_data[i]->block_type = config_data[config_offset];
         config_offset++;
-        pr_info("blk_data(%d).block_type = 0x%02x\n", i, 
+        pr_debug("blk_data(%d).block_type = 0x%02x\n", i, 
             cfg_info->blk_data[i]->block_type);
         cfg_info->blk_data[i]->yram_checksum = SMS_HTONS(config_data[config_offset], 
             config_data[config_offset+1]);
@@ -1190,15 +1190,15 @@ static struct tas256x_config_info* tas256x_add_config(unsigned char* config_data
             config_data[config_offset + 1], config_data[config_offset + 2], 
             config_data[config_offset + 3]);
         config_offset += 4;
-        pr_info("blk_data(%d).block_size = %u\n", i,
+        pr_debug("blk_data(%d).block_size = %u\n", i,
             cfg_info->blk_data[i]->block_size);
         cfg_info->blk_data[i]->nSublocks = SMS_HTONL(config_data[config_offset],
             config_data[config_offset + 1], config_data[config_offset + 2],
             config_data[config_offset + 3]);
-        pr_info("blk_data(%d).num_subblocks = %u\n", i, 
+        pr_debug("blk_data(%d).num_subblocks = %u\n", i, 
             cfg_info->blk_data[i]->nSublocks);
         config_offset += 4;
-        pr_info("config_offset = %d\n", config_offset);
+        pr_debug("config_offset = %d\n", config_offset);
         cfg_info->blk_data[i]->regdata = (unsigned char*)kzalloc( 
             cfg_info->blk_data[i]->block_size, GFP_KERNEL);
         if(!cfg_info->blk_data[i]->regdata) {
