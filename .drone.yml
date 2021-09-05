@@ -11,9 +11,6 @@ steps:
       CHANNEL_ID:
         from_secret: CHATID
     commands: 
-      - "curl https://raw.githubusercontent.com/azrim/script/master/kernel/buildnojava | bash"
+      - "bash build_script.sh"
     image: azrim89/kernel:latest
     name: Build
-    trigger: 
-      branch: 
-        - ayana
