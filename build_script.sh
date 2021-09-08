@@ -115,7 +115,7 @@ build_failed() {
 
 # Building
 makekernel() {
-    sed -i 's/${KERNELTYPE}"/${KERNELTYPE}-TEST"/g' "${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+    sed -i "s/${KERNELTYPE}/${KERNELTYPE}-TEST/g" "${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
     echo "azrim@Hearthaka" > "$KERNEL_DIR"/.builderdata
     export PATH="${COMP_PATH}"
     make O=out ARCH=arm64 ${DEFCONFIG}
