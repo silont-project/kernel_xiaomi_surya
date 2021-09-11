@@ -307,8 +307,7 @@ int kernfs_iop_permission(struct inode *inode, int mask)
 
 static int kernfs_xattr_get(const struct xattr_handler *handler,
 			    struct dentry *unused, struct inode *inode,
-			    const char *suffix, void *value, size_t size,
-			    int flags)
+			    const char *suffix, void *value, size_t size)
 {
 	const char *name = xattr_full_name(handler, suffix);
 	struct kernfs_node *kn = inode->i_private;
