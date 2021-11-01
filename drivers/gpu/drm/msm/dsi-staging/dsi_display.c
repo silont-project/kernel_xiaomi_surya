@@ -7014,9 +7014,9 @@ int dsi_display_set_mode(struct dsi_display *display,
 		}
 	}
 
-	pr_info("mdp_transfer_time_us=%d us\n",
+	pr_debug("mdp_transfer_time_us=%d us\n",
 			adj_mode.priv_info->mdp_transfer_time_us);
-	pr_info("hactive= %d, vactive= %d, fps=%d", timing.h_active,
+	pr_debug("hactive= %d, vactive= %d, fps=%d", timing.h_active,
 			timing.v_active, timing.refresh_rate);
 
 	memcpy(display->panel->cur_mode, &adj_mode, sizeof(adj_mode));
