@@ -8,7 +8,8 @@ KERNEL_DIR="${PWD}"
 cd "$KERNEL_DIR" || exit
 DTB_TYPE="" # define as "single" if want use single file
 KERN_IMG="${KERNEL_DIR}"/out/arch/arm64/boot/Image.gz-dtb   # if use single file define as Image.gz-dtb instead
-KERN_DTB="${KERNEL_DIR}"/out/arch/arm64/boot/dtbo.img       # and comment this variable
+KERN_DTBO="${KERNEL_DIR}"/out/arch/arm64/boot/dtbo.img       # and comment this variable
+KERN_DTB="${KERNEL_DIR}"/out/arch/arm64/boot/dtb.img
 ANYKERNEL="${HOME}"/anykernel
 LOGS="${HOME}"/${CHEAD}.log
 
@@ -141,14 +142,15 @@ packingkernel() {
     if ! [ -f "${KERN_IMG}" ]; then
         build_failed
     fi
-    if ! [ -f "${KERN_DTB}" ]; then
+    if ! [ -f "${KERN_DTBO}" ]; then
         build_failed
     fi
     if [[ "${DTB_TYPE}" =~ "single" ]]; then
         cp "${KERN_IMG}" "${ANYKERNEL}"/Image.gz-dtb
     else
-        cp "${KERN_IMG}" "${ANYKERNEL}"/Image.gz-dtb
-        cp "${KERN_DTB}" "${ANYKERNEL}"/dtbo.img
+        cp "${KERN_IMG}" "${ANYKERNEL}"/Image.gz
+        cp "${KERN_DTBO}" "${ANYKERNEL}"/dtbo.img
+        cp "${KERN_DTBO}" "${ANYKERNEL}"/dtb.img
     fi
 
     # Zip the kernel, or fail
