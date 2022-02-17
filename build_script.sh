@@ -150,7 +150,7 @@ packingkernel() {
     else
         cp "${KERN_IMG}" "${ANYKERNEL}"/Image.gz
         cp "${KERN_DTBO}" "${ANYKERNEL}"/dtbo.img
-        cp "${KERN_DTBO}" "${ANYKERNEL}"/dtb.img
+        cp "${KERN_DTB}" "${ANYKERNEL}"/dtb.img
     fi
 
     # Zip the kernel, or fail
