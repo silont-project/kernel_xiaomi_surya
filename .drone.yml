@@ -13,7 +13,7 @@ steps:
     commands: 
     commands:
       - curl -LO "https://repo.archlinuxcn.org/x86_64/glibc-linux4-2.35-2-x86_64.pkg.tar.zst" && bsdtar -C / -xvf "glibc-linux4-2.35-2-x86_64.pkg.tar.zst"
-      - pacman -Sy && pacman -S git bc inetutils python3 cpio zip jdk8-openjdk --noconfirm
+      - pacman -Sy && pacman -S git base-devel xmlto inetutils bc cpio python-sphinx python-sphinx_rtd_theme graphviz imagemagick git python2 python zip jdk8-openjdk --noconfirm
       - "bash build_script.sh"
     image: archlinux:base-devel
     name: Build
