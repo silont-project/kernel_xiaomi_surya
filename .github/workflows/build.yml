@@ -2,7 +2,7 @@ name: Build test
 on:
   push:
     branches:
-      - main
+      - 4
 jobs:
   build-test:
     container: azrim89/kernel:latest
