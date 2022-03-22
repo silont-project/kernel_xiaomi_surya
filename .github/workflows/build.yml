@@ -5,7 +5,8 @@ on:
       - 4
 jobs:
   build-test:
-    runs-on: azrim89/kernel:latest
+    runs-on: ubuntu-latest
+    container: azrim89/kernel:latest
     steps:
     - uses: actions/checkout@v2
     - name: Building
