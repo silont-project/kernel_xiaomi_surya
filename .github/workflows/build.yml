@@ -1,0 +1,14 @@
+name: Build test
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-test:
+    container: azrim89/kernel:latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Building
+      run: bash build_script.sh
+      env:
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
