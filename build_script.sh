@@ -3,7 +3,7 @@
 # Copyright (C) 2020 azrim.
 # All rights reserved.
 
-# Init
+# Init #
 KERNEL_DIR="${PWD}"
 cd "$KERNEL_DIR" || exit
 DTB_TYPE="" # define as "single" if want use single file
