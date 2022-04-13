@@ -34,7 +34,7 @@ GCC_DIR="" # Doesn't needed if use proton-clang
 GCC32_DIR="" # Doesn't needed if use proton-clang
 CLANG_FILE="/mnt/workdir/clang.tar.gz"
 
-git clone https://gitlab.com/AnggaR96s/clang-gengkapak.git --depth=1 --single-branch $CLANG_DIR
+git clone https://github.com/silont-project/silont-clang.git -b 13 --depth=1 --single-branch $CLANG_DIR
 
 if [[ "${COMP_TYPE}" =~ "clang" ]]; then
     CSTRING=$("$CLANG_DIR"/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
