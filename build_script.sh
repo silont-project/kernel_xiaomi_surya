@@ -89,6 +89,12 @@ versioning() {
     source /mnt/workdir/name.sh
 }
 
+# Patch Defconfig
+patch_config() {
+    sed -i "s/${KERNELTYPE}/${KERNELTYPE}-TEST/g" "${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+    sed -i 's/CONFIG_THINLTO=y/CONFIG_THINLTO=n/g' arch/arm64/configs/"${DEFCONFIG}"
+}
+
 # Costumize
 versioning
 KERNEL="[TEST]-SiLonT"
@@ -116,7 +122,7 @@ build_failed() {
 
 # Building
 makekernel() {
-    sed -i "s/${KERNELTYPE}/${KERNELTYPE}-TEST/g" "${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+    patch_config
     echo "azrim@Hearthaka" > "$KERNEL_DIR"/.builderdata
     export PATH="${COMP_PATH}"
     make O=out ARCH=arm64 ${DEFCONFIG}
