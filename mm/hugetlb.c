@@ -60,7 +60,7 @@ static bool __initdata parsed_valid_hugepagesz = true;
  * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
  * free_huge_pages, and surplus_huge_pages.
  */
-DEFINE_SPINLOCK(hugetlb_lock);
+DEFINE_RAW_SPINLOCK(hugetlb_lock);
 
 /*
  * Serializes faults on the same logical page.  This is used to
@@ -91,7 +91,7 @@ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
 {
 	bool free = (spool->count == 0) && (spool->used_hpages == 0);
 
-	spin_unlock(&spool->lock);
+	raw_spin_unlock(&spool->lock);
 
 	/* If no pages are used, and no other handles to the subpool
 	 * remain, give up any reservations mased on minimum size and
@@ -113,7 +113,7 @@ struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,
 	if (!spool)
 		return NULL;
 
-	spin_lock_init(&spool->lock);
+	raw_spin_lock_init(&spool->lock);
 	spool->count = 1;
 	spool->max_hpages = max_hpages;
 	spool->hstate = h;
@@ -130,7 +130,7 @@ struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,
 
 void hugepage_put_subpool(struct hugepage_subpool *spool)
 {
-	spin_lock(&spool->lock);
+	raw_spin_lock(&spool->lock);
 	BUG_ON(!spool->count);
 	spool->count--;
 	unlock_or_release_subpool(spool);
@@ -152,7 +152,7 @@ static long hugepage_subpool_get_pages(struct hugepage_subpool *spool,
 	if (!spool)
 		return ret;
 
-	spin_lock(&spool->lock);
+	raw_spin_lock(&spool->lock);
 
 	if (spool->max_hpages != -1) {		/* maximum size accounting */
 		if ((spool->used_hpages + delta) <= spool->max_hpages)
@@ -179,7 +179,7 @@ static long hugepage_subpool_get_pages(struct hugepage_subpool *spool,
 	}
 
 unlock_ret:
-	spin_unlock(&spool->lock);
+	raw_spin_unlock(&spool->lock);
 	return ret;
 }
 
@@ -197,7 +197,7 @@ static long hugepage_subpool_put_pages(struct hugepage_subpool *spool,
 	if (!spool)
 		return delta;
 
-	spin_lock(&spool->lock);
+	raw_spin_lock(&spool->lock);
 
 	if (spool->max_hpages != -1)		/* maximum size accounting */
 		spool->used_hpages -= delta;
@@ -278,7 +278,7 @@ static long region_add(struct resv_map *resv, long f, long t)
 	struct file_region *rg, *nrg, *trg;
 	long add = 0;
 
-	spin_lock(&resv->lock);
+	raw_spin_lock(&resv->lock);
 	/* Locate the region we are either in or before. */
 	list_for_each_entry(rg, head, link)
 		if (f <= rg->to)
@@ -341,7 +341,7 @@ static long region_add(struct resv_map *resv, long f, long t)
 
 out_locked:
 	resv->adds_in_progress--;
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 	VM_BUG_ON(add < 0);
 	return add;
 }
@@ -375,7 +375,7 @@ static long region_chg(struct resv_map *resv, long f, long t)
 	long chg = 0;
 
 retry:
-	spin_lock(&resv->lock);
+	raw_spin_lock(&resv->lock);
 retry_locked:
 	resv->adds_in_progress++;
 
@@ -389,7 +389,7 @@ retry_locked:
 		VM_BUG_ON(resv->adds_in_progress - resv->region_cache_count > 1);
 		/* Must drop lock to allocate a new descriptor. */
 		resv->adds_in_progress--;
-		spin_unlock(&resv->lock);
+		raw_spin_unlock(&resv->lock);
 
 		trg = kmalloc(sizeof(*trg), GFP_KERNEL);
 		if (!trg) {
@@ -397,7 +397,7 @@ retry_locked:
 			return -ENOMEM;
 		}
 
-		spin_lock(&resv->lock);
+		raw_spin_lock(&resv->lock);
 		list_add(&trg->link, &resv->region_cache);
 		resv->region_cache_count++;
 		goto retry_locked;
@@ -414,7 +414,7 @@ retry_locked:
 	if (&rg->link == head || t < rg->from) {
 		if (!nrg) {
 			resv->adds_in_progress--;
-			spin_unlock(&resv->lock);
+			raw_spin_unlock(&resv->lock);
 			nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
 			if (!nrg)
 				return -ENOMEM;
@@ -453,12 +453,12 @@ retry_locked:
 	}
 
 out:
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 	/*  We already know we raced and no longer need the new region */
 	kfree(nrg);
 	return chg;
 out_nrg:
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 	return chg;
 }
 
@@ -475,10 +475,10 @@ out_nrg:
  */
 static void region_abort(struct resv_map *resv, long f, long t)
 {
-	spin_lock(&resv->lock);
+	raw_spin_lock(&resv->lock);
 	VM_BUG_ON(!resv->region_cache_count);
 	resv->adds_in_progress--;
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 }
 
 /*
@@ -503,7 +503,7 @@ static long region_del(struct resv_map *resv, long f, long t)
 	long del = 0;
 
 retry:
-	spin_lock(&resv->lock);
+	raw_spin_lock(&resv->lock);
 	list_for_each_entry_safe(rg, trg, head, link) {
 		/*
 		 * Skip regions before the range to be deleted.  file_region
@@ -533,7 +533,7 @@ retry:
 			}
 
 			if (!nrg) {
-				spin_unlock(&resv->lock);
+				raw_spin_unlock(&resv->lock);
 				nrg = kmalloc(sizeof(*nrg), GFP_KERNEL);
 				if (!nrg)
 					return -ENOMEM;
@@ -571,7 +571,7 @@ retry:
 		}
 	}
 
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 	kfree(nrg);
 	return del;
 }
@@ -615,7 +615,7 @@ static long region_count(struct resv_map *resv, long f, long t)
 	struct file_region *rg;
 	long chg = 0;
 
-	spin_lock(&resv->lock);
+	raw_spin_lock(&resv->lock);
 	/* Locate each segment we overlap with, and count that overlap. */
 	list_for_each_entry(rg, head, link) {
 		long seg_from;
@@ -631,7 +631,7 @@ static long region_count(struct resv_map *resv, long f, long t)
 
 		chg += seg_to - seg_from;
 	}
-	spin_unlock(&resv->lock);
+	raw_spin_unlock(&resv->lock);
 
 	return chg;
 }
@@ -735,7 +735,7 @@ struct resv_map *resv_map_alloc(void)
 	}
 
 	kref_init(&resv_map->refs);
-	spin_lock_init(&resv_map->lock);
+	raw_spin_lock_init(&resv_map->lock);
 	INIT_LIST_HEAD(&resv_map->regions);
 
 	resv_map->adds_in_progress = 0;
@@ -1145,7 +1145,7 @@ static struct page *alloc_gigantic_page(int nid, struct hstate *h)
 	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
 	zonelist = node_zonelist(nid, gfp_mask);
 	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {
-		spin_lock_irqsave(&zone->lock, flags);
+		raw_spin_lock_irqsave(&zone->lock, flags);
 
 		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
 		while (zone_spans_last_pfn(zone, pfn, nr_pages)) {
@@ -1157,16 +1157,16 @@ static struct page *alloc_gigantic_page(int nid, struct hstate *h)
 				 * spinning on this lock, it may win the race
 				 * and cause alloc_contig_range() to fail...
 				 */
-				spin_unlock_irqrestore(&zone->lock, flags);
+				raw_spin_unlock_irqrestore(&zone->lock, flags);
 				ret = __alloc_gigantic_page(pfn, nr_pages, gfp_mask);
 				if (!ret)
 					return pfn_to_page(pfn);
-				spin_lock_irqsave(&zone->lock, flags);
+				raw_spin_lock_irqsave(&zone->lock, flags);
 			}
 			pfn += nr_pages;
 		}
 
-		spin_unlock_irqrestore(&zone->lock, flags);
+		raw_spin_unlock_irqrestore(&zone->lock, flags);
 	}
 
 	return NULL;
@@ -1313,7 +1313,7 @@ void free_huge_page(struct page *page)
 			restore_reserve = true;
 	}
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	clear_page_huge_active(page);
 	hugetlb_cgroup_uncharge_page(hstate_index(h),
 				     pages_per_huge_page(h), page);
@@ -1330,19 +1330,19 @@ void free_huge_page(struct page *page)
 		arch_clear_hugepage_flags(page);
 		enqueue_huge_page(h, page);
 	}
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 }
 
 static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
 {
 	INIT_LIST_HEAD(&page->lru);
 	set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	set_hugetlb_cgroup(page, NULL);
 	h->nr_huge_pages++;
 	h->nr_huge_pages_node[nid]++;
 	ClearPageHugeFreed(page);
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	put_page(page); /* free it into the hugepage allocator */
 }
 
@@ -1503,7 +1503,7 @@ int dissolve_free_huge_page(struct page *page)
 	int rc = 0;
 
 retry:
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (PageHuge(page) && !page_count(page)) {
 		struct page *head = compound_head(page);
 		struct hstate *h = page_hstate(head);
@@ -1518,7 +1518,7 @@ retry:
 		 * when it is dissolved.
 		 */
 		if (unlikely(!PageHugeFreed(head))) {
-			spin_unlock(&hugetlb_lock);
+			raw_spin_unlock(&hugetlb_lock);
 			cond_resched();
 
 			/*
@@ -1547,7 +1547,7 @@ retry:
 		update_and_free_page(h, head);
 	}
 out:
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	return rc;
 }
 
@@ -1623,19 +1623,19 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
 	 * the node values until we've gotten the hugepage and only the
 	 * per-node value is checked there.
 	 */
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (h->surplus_huge_pages >= h->nr_overcommit_huge_pages) {
-		spin_unlock(&hugetlb_lock);
+		raw_spin_unlock(&hugetlb_lock);
 		return NULL;
 	} else {
 		h->nr_huge_pages++;
 		h->surplus_huge_pages++;
 	}
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (page) {
 		INIT_LIST_HEAD(&page->lru);
 		r_nid = page_to_nid(page);
@@ -1652,7 +1652,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
 		h->surplus_huge_pages--;
 		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
 	}
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	return page;
 }
@@ -1690,10 +1690,10 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
 	if (nid != NUMA_NO_NODE)
 		gfp_mask |= __GFP_THISNODE;
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (h->free_huge_pages - h->resv_huge_pages > 0)
 		page = dequeue_huge_page_nodemask(h, gfp_mask, nid, NULL);
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	if (!page)
 		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
@@ -1707,17 +1707,17 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
 {
 	gfp_t gfp_mask = htlb_alloc_mask(h);
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (h->free_huge_pages - h->resv_huge_pages > 0) {
 		struct page *page;
 
 		page = dequeue_huge_page_nodemask(h, gfp_mask, preferred_nid, nmask);
 		if (page) {
-			spin_unlock(&hugetlb_lock);
+			raw_spin_unlock(&hugetlb_lock);
 			return page;
 		}
 	}
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	/* No reservations, try to overcommit */
 
@@ -1747,7 +1747,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
 
 	ret = -ENOMEM;
 retry:
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	for (i = 0; i < needed; i++) {
 		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
 				NUMA_NO_NODE, NULL);
@@ -1764,7 +1764,7 @@ retry:
 	 * After retaking hugetlb_lock, we need to recalculate 'needed'
 	 * because either resv_huge_pages or free_huge_pages may have changed.
 	 */
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	needed = (h->resv_huge_pages + delta) -
 			(h->free_huge_pages + allocated);
 	if (needed > 0) {
@@ -1802,12 +1802,12 @@ retry:
 		enqueue_huge_page(h, page);
 	}
 free:
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	/* Free unnecessary surplus pages to the buddy allocator */
 	list_for_each_entry_safe(page, tmp, &surplus_list, lru)
 		put_page(page);
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 
 	return ret;
 }
@@ -2077,7 +2077,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 	if (ret)
 		goto out_subpool_put;
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	/*
 	 * glb_chg is passed to indicate whether or not a page must be taken
 	 * from the global free pool (global change).  gbl_chg == 0 indicates
@@ -2085,7 +2085,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 	 */
 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, gbl_chg);
 	if (!page) {
-		spin_unlock(&hugetlb_lock);
+		raw_spin_unlock(&hugetlb_lock);
 		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
 		if (!page)
 			goto out_uncharge_cgroup;
@@ -2093,12 +2093,12 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 			SetPagePrivate(page);
 			h->resv_huge_pages--;
 		}
-		spin_lock(&hugetlb_lock);
+		raw_spin_lock(&hugetlb_lock);
 		list_move(&page->lru, &h->hugepage_activelist);
 		/* Fall through */
 	}
 	hugetlb_cgroup_commit_charge(idx, pages_per_huge_page(h), h_cg, page);
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	set_page_private(page, (unsigned long)spool);
 
@@ -2351,7 +2351,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 	 * pool might be one hugepage larger than it needs to be, but
 	 * within all the constraints specified by the sysctls.
 	 */
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	while (h->surplus_huge_pages && count > persistent_huge_pages(h)) {
 		if (!adjust_pool_surplus(h, nodes_allowed, -1))
 			break;
@@ -2363,7 +2363,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 		 * page, free_huge_page will handle it by freeing the page
 		 * and reducing the surplus.
 		 */
-		spin_unlock(&hugetlb_lock);
+		raw_spin_unlock(&hugetlb_lock);
 
 		/* yield cpu to avoid soft lockup */
 		cond_resched();
@@ -2372,7 +2372,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
 		else
 			ret = alloc_fresh_huge_page(h, nodes_allowed);
-		spin_lock(&hugetlb_lock);
+		raw_spin_lock(&hugetlb_lock);
 		if (!ret)
 			goto out;
 
@@ -2410,7 +2410,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
 	}
 out:
 	ret = persistent_huge_pages(h);
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	return ret;
 }
 
@@ -2570,9 +2570,9 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
 	if (err)
 		return err;
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	h->nr_overcommit_huge_pages = input;
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 
 	return count;
 }
@@ -3035,9 +3035,9 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 		goto out;
 
 	if (write) {
-		spin_lock(&hugetlb_lock);
+		raw_spin_lock(&hugetlb_lock);
 		h->nr_overcommit_huge_pages = tmp;
-		spin_unlock(&hugetlb_lock);
+		raw_spin_unlock(&hugetlb_lock);
 	}
 out:
 	return ret;
@@ -3116,7 +3116,7 @@ static int hugetlb_acct_memory(struct hstate *h, long delta)
 {
 	int ret = -ENOMEM;
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	/*
 	 * When cpuset is configured, it breaks the strict hugetlb page
 	 * reservation as the accounting is done on a global variable. Such
@@ -3149,7 +3149,7 @@ static int hugetlb_acct_memory(struct hstate *h, long delta)
 		return_unused_surplus_pages(h, (unsigned long) -delta);
 
 out:
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	return ret;
 }
 
@@ -3324,7 +3324,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 
 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
 		src_ptl = huge_pte_lockptr(h, src, src_pte);
-		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+		raw_spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
 		entry = huge_ptep_get(src_pte);
 		dst_entry = huge_ptep_get(dst_pte);
 		if (huge_pte_none(entry) || !huge_pte_none(dst_entry)) {
@@ -3362,8 +3362,8 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 			hugetlb_count_add(pages_per_huge_page(h), dst);
 		}
-		spin_unlock(src_ptl);
-		spin_unlock(dst_ptl);
+		raw_spin_unlock(src_ptl);
+		raw_spin_unlock(dst_ptl);
 	}
 
 	if (cow)
@@ -3412,7 +3412,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 		ptl = huge_pte_lock(h, mm, ptep);
 		if (huge_pmd_unshare(mm, &address, ptep)) {
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			tlb_flush_pmd_range(tlb, address & PUD_MASK, PUD_SIZE);
 			force_flush = true;
 			continue;
@@ -3420,7 +3420,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 		pte = huge_ptep_get(ptep);
 		if (huge_pte_none(pte)) {
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			continue;
 		}
 
@@ -3430,7 +3430,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 */
 		if (unlikely(!pte_present(pte))) {
 			huge_pte_clear(mm, address, ptep, sz);
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			continue;
 		}
 
@@ -3442,7 +3442,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 */
 		if (ref_page) {
 			if (page != ref_page) {
-				spin_unlock(ptl);
+				raw_spin_unlock(ptl);
 				continue;
 			}
 			/*
@@ -3461,7 +3461,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		hugetlb_count_sub(pages_per_huge_page(h), mm);
 		page_remove_rmap(page, true);
 
-		spin_unlock(ptl);
+		raw_spin_unlock(ptl);
 		tlb_remove_page_size(tlb, page, huge_page_size(h));
 		/*
 		 * Bail out after unmapping reference page if supplied
@@ -3636,7 +3636,7 @@ retry_avoidcopy:
 	 * Drop page table lock as buddy allocator may be called. It will
 	 * be acquired again before returning to the caller, as expected.
 	 */
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 	new_page = alloc_huge_page(vma, address, outside_reserve);
 
 	if (IS_ERR(new_page)) {
@@ -3652,7 +3652,7 @@ retry_avoidcopy:
 			BUG_ON(huge_pte_none(pte));
 			unmap_ref_private(mm, vma, old_page, address);
 			BUG_ON(huge_pte_none(pte));
-			spin_lock(ptl);
+			raw_spin_lock(ptl);
 			ptep = huge_pte_offset(mm, address & huge_page_mask(h),
 					       huge_page_size(h));
 			if (likely(ptep &&
@@ -3691,7 +3691,7 @@ retry_avoidcopy:
 	 * Retake the page table lock to check for racing updates
 	 * before the page tables are altered
 	 */
-	spin_lock(ptl);
+	raw_spin_lock(ptl);
 	ptep = huge_pte_offset(mm, address & huge_page_mask(h),
 			       huge_page_size(h));
 	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
@@ -3708,7 +3708,7 @@ retry_avoidcopy:
 		/* Make the old page be freed below */
 		new_page = old_page;
 	}
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 out_release_all:
 	restore_reserve_on_error(h, vma, address, new_page);
@@ -3716,7 +3716,7 @@ out_release_all:
 out_release_old:
 	put_page(old_page);
 
-	spin_lock(ptl); /* Caller expects lock to be held */
+	raw_spin_lock(ptl); /* Caller expects lock to be held */
 	return ret;
 }
 
@@ -3770,9 +3770,9 @@ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
 	 */
 	set_page_dirty(page);
 
-	spin_lock(&inode->i_lock);
+	raw_spin_lock(&inode->i_lock);
 	inode->i_blocks += blocks_per_huge_page(h);
-	spin_unlock(&inode->i_lock);
+	raw_spin_unlock(&inode->i_lock);
 	return 0;
 }
 
@@ -3924,7 +3924,7 @@ retry:
 		ret = hugetlb_cow(mm, vma, address, ptep, page, ptl);
 	}
 
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 
 	/*
 	 * Only make newly allocated pages active.  Existing pages found
@@ -3939,7 +3939,7 @@ out:
 	return ret;
 
 backout:
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 backout_unlocked:
 	unlock_page(page);
 	restore_reserve_on_error(h, vma, address, page);
@@ -4091,7 +4091,7 @@ out_put_page:
 		unlock_page(page);
 	put_page(page);
 out_ptl:
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 
 	if (pagecache_page) {
 		unlock_page(pagecache_page);
@@ -4195,7 +4195,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	}
 
 	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
-	spin_lock(ptl);
+	raw_spin_lock(ptl);
 
 	/*
 	 * Recheck the i_size after holding PT lock to make sure not
@@ -4236,7 +4236,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 	set_page_huge_active(page);
 	if (vm_shared)
 		unlock_page(page);
@@ -4244,7 +4244,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 out:
 	return ret;
 out_release_unlock:
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 	if (vm_shared)
 		unlock_page(page);
 out_release_nounlock:
@@ -4301,7 +4301,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (absent && (flags & FOLL_DUMP) &&
 		    !hugetlbfs_pagecache_present(h, vma, vaddr)) {
 			if (pte)
-				spin_unlock(ptl);
+				raw_spin_unlock(ptl);
 			remainder = 0;
 			break;
 		}
@@ -4323,7 +4323,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned int fault_flags = 0;
 
 			if (pte)
-				spin_unlock(ptl);
+				raw_spin_unlock(ptl);
 			if (flags & FOLL_WRITE)
 				fault_flags |= FAULT_FLAG_WRITE;
 			if (nonblocking)
@@ -4369,7 +4369,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 */
 		if (unlikely(page_count(page) <= 0)) {
 			if (pages) {
-				spin_unlock(ptl);
+				raw_spin_unlock(ptl);
 				remainder = 0;
 				err = -ENOMEM;
 				break;
@@ -4396,7 +4396,7 @@ same_page:
 			 */
 			goto same_page;
 		}
-		spin_unlock(ptl);
+		raw_spin_unlock(ptl);
 	}
 	*nr_pages = remainder;
 	/*
@@ -4450,13 +4450,13 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 		ptl = huge_pte_lock(h, mm, ptep);
 		if (huge_pmd_unshare(mm, &address, ptep)) {
 			pages++;
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			shared_pmd = true;
 			continue;
 		}
 		pte = huge_ptep_get(ptep);
 		if (unlikely(is_hugetlb_entry_hwpoisoned(pte))) {
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			continue;
 		}
 		if (unlikely(is_hugetlb_entry_migration(pte))) {
@@ -4471,7 +4471,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 						     newpte, huge_page_size(h));
 				pages++;
 			}
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			continue;
 		}
 		if (!huge_pte_none(pte)) {
@@ -4481,7 +4481,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 			set_huge_pte_at(mm, address, ptep, pte);
 			pages++;
 		}
-		spin_unlock(ptl);
+		raw_spin_unlock(ptl);
 	}
 	/*
 	 * Must flush TLB before releasing i_mmap_rwsem: x86's huge_pmd_unshare
@@ -4637,9 +4637,9 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 			return chg;
 	}
 
-	spin_lock(&inode->i_lock);
+	raw_spin_lock(&inode->i_lock);
 	inode->i_blocks -= (blocks_per_huge_page(h) * freed);
-	spin_unlock(&inode->i_lock);
+	raw_spin_unlock(&inode->i_lock);
 
 	/*
 	 * If the subpool has a minimum size, the number of global
@@ -4768,7 +4768,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
 	} else {
 		put_page(virt_to_page(spte));
 	}
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 out:
 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
 	i_mmap_unlock_write(mapping);
@@ -4925,7 +4925,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 	pte_t pte;
 retry:
 	ptl = pmd_lockptr(mm, pmd);
-	spin_lock(ptl);
+	raw_spin_lock(ptl);
 	/*
 	 * make sure that the address range covered by this pmd is not
 	 * unmapped from other threads.
@@ -4939,7 +4939,7 @@ retry:
 			get_page(page);
 	} else {
 		if (is_hugetlb_entry_migration(pte)) {
-			spin_unlock(ptl);
+			raw_spin_unlock(ptl);
 			__migration_entry_wait(mm, (pte_t *)pmd, ptl);
 			goto retry;
 		}
@@ -4949,7 +4949,7 @@ retry:
 		 */
 	}
 out:
-	spin_unlock(ptl);
+	raw_spin_unlock(ptl);
 	return page;
 }
 
@@ -4976,7 +4976,7 @@ bool isolate_huge_page(struct page *page, struct list_head *list)
 {
 	bool ret = true;
 
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	if (!PageHeadHuge(page) || !page_huge_active(page) ||
 	    !get_page_unless_zero(page)) {
 		ret = false;
@@ -4985,16 +4985,16 @@ bool isolate_huge_page(struct page *page, struct list_head *list)
 	clear_page_huge_active(page);
 	list_move_tail(&page->lru, list);
 unlock:
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	return ret;
 }
 
 void putback_active_hugepage(struct page *page)
 {
 	VM_BUG_ON_PAGE(!PageHead(page), page);
-	spin_lock(&hugetlb_lock);
+	raw_spin_lock(&hugetlb_lock);
 	set_page_huge_active(page);
 	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
-	spin_unlock(&hugetlb_lock);
+	raw_spin_unlock(&hugetlb_lock);
 	put_page(page);
 }
