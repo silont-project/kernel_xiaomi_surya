@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.277 Kernel Configuration
+# Linux/arm64 4.14.278 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -1939,7 +1939,6 @@ CONFIG_CNSS_GENL=y
 # CONFIG_WAN is not set
 # CONFIG_VMXNET3 is not set
 # CONFIG_ISDN is not set
-# CONFIG_NVM is not set
 
 #
 # Input device support
