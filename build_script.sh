@@ -13,6 +13,15 @@ KERN_DTB="${KERNEL_DIR}"/out/arch/arm64/boot/dtb.img
 ANYKERNEL="${HOME}"/anykernel
 LOGS="${HOME}"/${CHEAD}.log
 
+# SMT Check
+if [ "$(cat /sys/devices/system/cpu/smt/active)" = "1" ]; then
+		export THREADS=$(expr $(nproc --all) \* 2)
+	else
+		export THREADS=$(nproc --all)
+fi
+
+
+
 # Repo URL
 ANYKERNEL_REPO="https://github.com/azrim/anykernel3.git"
 ANYKERNEL_BRANCH="master"
@@ -130,9 +139,9 @@ makekernel() {
         regenerate
     fi
     if [[ "${COMP_TYPE}" =~ "clang" ]]; then
-        make -j$(nproc --all) CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- O=out ARCH=arm64 LLVM=1 2>&1 | tee "$LOGS"
+        make -j$THREADS CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- O=out ARCH=arm64 LLVM=1 2>&1 | tee "$LOGS"
     else
-      	make -j$(nproc --all) O=out ARCH=arm64 CROSS_COMPILE="${GCC_DIR}/bin/aarch64-elf-" CROSS_COMPILE_ARM32="${GCC32_DIR}/bin/arm-eabi-"
+      	make -j$THREADS O=out ARCH=arm64 CROSS_COMPILE="${GCC_DIR}/bin/aarch64-elf-" CROSS_COMPILE_ARM32="${GCC32_DIR}/bin/arm-eabi-"
     fi
     # Check If compilation is success
     packingkernel
