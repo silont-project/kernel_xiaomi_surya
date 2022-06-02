@@ -84,9 +84,8 @@ tg_fail() {
 
 # Versioning
 versioning() {
-    cat arch/arm64/configs/"${DEFCONFIG}" | grep CONFIG_LOCALVERSION= | tee /mnt/workdir/name.sh
-    sed -i 's/-SiLonT-//g' /mnt/workdir/name.sh
-    source /mnt/workdir/name.sh
+    DEF=$(cat arch/arm64/configs/${DEFCONFIG} | grep CONFIG_LOCALVERSION= | sed "s/-SiLonT-//g" | sed 's/"//g' | sed "s/CONFIG_LOCALVERSION/KERNELTYPE/g")
+    export $DEF
 }
 
 # Patch Defconfig
@@ -102,7 +101,6 @@ patch_config() {
 versioning
 KERNEL="[TEST]-SiLonT"
 DEVICE="Surya"
-KERNELTYPE="$CONFIG_LOCALVERSION"
 KERNELNAME="${KERNEL}-${DEVICE}-${KERNELTYPE}-$(date +%y%m%d-%H%M)"
 TEMPZIPNAME="${KERNELNAME}-unsigned.zip"
 ZIPNAME="${KERNELNAME}.zip"
