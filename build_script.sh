@@ -98,6 +98,7 @@ patch_config() {
 }
 
 # Costumize
+patch_config
 versioning
 KERNEL="[TEST]-SiLonT"
 DEVICE="Surya"
@@ -123,7 +124,6 @@ build_failed() {
 
 # Building
 makekernel() {
-    patch_config
     echo "azrim@Hearthaka" > "$KERNEL_DIR"/.builderdata
     export PATH="${COMP_PATH}"
     make O=out ARCH=arm64 ${DEFCONFIG}
