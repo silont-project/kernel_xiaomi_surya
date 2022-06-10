@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.278 Kernel Configuration
+# Linux/arm64 4.14.280 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -50,7 +50,6 @@ CONFIG_CROSS_COMPILE=""
 # CONFIG_COMPILE_TEST is not set
 CONFIG_LOCALVERSION="-SiLonT/PrinzEugen"
 # CONFIG_LOCALVERSION_AUTO is not set
-# CONFIG_LOCALVERSION_BRANCH_SHA is not set
 CONFIG_DEFAULT_HOSTNAME="(none)"
 CONFIG_SWAP=y
 # CONFIG_SYSVIPC is not set
