@@ -162,7 +162,7 @@ packingkernel() {
 
     # Zip the kernel, or fail
     cd "${ANYKERNEL}" || exit
-    zip -r9 "${TEMPZIPNAME}" ./*
+    zip -r9 "${TEMPZIPNAME}" ./* -x .git README.md *placeholder
 
     # Sign the zip before sending it to Telegram
     curl -sLo zipsigner-4.0.jar https://raw.githubusercontent.com/baalajimaestro/AnyKernel3/master/zipsigner-4.0.jar
