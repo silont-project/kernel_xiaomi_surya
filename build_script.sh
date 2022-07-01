@@ -84,7 +84,8 @@ tg_fail() {
 
 # Versioning
 versioning() {
-    DEF=$(cat arch/arm64/configs/${DEFCONFIG} | grep CONFIG_LOCALVERSION= | sed "s/-SiLonT-//g" | sed 's/"//g' | sed "s/CONFIG_LOCALVERSION/KERNELTYPE/g")
+    TMP=$(cat arch/arm64/configs/${DEFCONFIG} | grep CONFIG_LOCALVERSION= | tr '[' '+' )
+    DEF=$(echo $TMP | sed 's/-SiLonT:+//g' | sed 's/]//g' | sed 's/"//g' | sed 's/CONFIG_LOCALVERSION/KERNELTYPE/g')
     export $DEF
 }
 
@@ -92,7 +93,6 @@ versioning() {
 patch_config() {
     sed -i "s/${KERNELTYPE}/${KERNELTYPE}-TEST/g" "${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
     sed -i 's/CONFIG_THINLTO=y/CONFIG_THINLTO=n/g' arch/arm64/configs/"${DEFCONFIG}"
-    sed -i 's~SiLonT/~SiLonT-~g' arch/arm64/configs/"${DEFCONFIG}"
     sed -i 's/# CONFIG_LOCALVERSION_AUTO is not set/CONFIG_LOCALVERSION_AUTO=y/g' arch/arm64/configs/"${DEFCONFIG}"
     sed -i 's/# CONFIG_LOCALVERSION_BRANCH_SHA is not set/CONFIG_LOCALVERSION_AUTO=y/g' arch/arm64/configs/"${DEFCONFIG}"
 }
