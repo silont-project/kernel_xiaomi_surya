@@ -621,6 +621,7 @@ static void complete_commit(struct msm_commit *c)
 
 static void _msm_drm_commit_work_cb(struct kthread_work *work)
 {
+	ktime_t start, end;
 	struct msm_commit *c = container_of(work, typeof(*c), commit_work);
 
 	start = ktime_get();
